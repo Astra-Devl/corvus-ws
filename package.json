@@ -1,6 +1,5 @@
-
 {
-    "name": "veylix",
+    "name": "corvus-ws",
     "version": "1.0.0",
     "description": "A modular WhatsApp Web API library built with TypeScript",
     "keywords": [
@@ -18,7 +17,7 @@
         "socket"
     ],
     "license": "MIT",
-    "author": "Veylix Contributors",
+    "author": "AstraCodeX",
     "main": "./dist/cjs/index.js",
     "module": "./dist/esm/index.js",
     "types": "./dist/types/index.d.ts",
