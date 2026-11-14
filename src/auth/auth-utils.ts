@@ -1,12 +1,11 @@
-import { generateKeyPairSync, randomBytes } from 'node:crypto'
-import { AuthError } from '../core/errors.js'
+import { randomBytes } from 'node:crypto'
+import { curveKeyPairProvider, generateKeyPair, toSignalPubKey } from '../crypto/key-utils.js'
 import type { AuthCreds, KeyPair, SignedKeyPair } from './credentials.js'
 
 // ---- key pair provider ---------------------------------------------------
 
 /**
- * Abstraksi operasi kurva 25519. `crypto/key-utils.ts` akan menyediakan
- * implementasi lengkap (termasuk tanda tangan XEdDSA).
+ * Abstraksi operasi kurva 25519; implementasi bawaan ada di `crypto/key-utils.ts`.
  */
 export interface KeyPairProvider {
   generateKeyPair(): KeyPair
@@ -15,27 +14,10 @@ export interface KeyPairProvider {
 }
 
 /** Buat pasangan kunci X25519 (private key di-clamp). */
-export function generateX25519KeyPair(): KeyPair {
-  const { privateKey } = generateKeyPairSync('x25519')
-  const jwk = privateKey.export({ format: 'jwk' })
-  if (!jwk.x || !jwk.d) throw new AuthError('Failed to export X25519 key pair')
+export const generateX25519KeyPair = generateKeyPair
 
-  const priv = Buffer.from(jwk.d, 'base64url')
-  priv[0] = priv[0]! & 248
-  priv[31] = (priv[31]! & 127) | 64
-
-  return { public: Buffer.from(jwk.x, 'base64url'), private: priv }
-}
-
-export const nodeKeyPairProvider: KeyPairProvider = {
-  generateKeyPair: generateX25519KeyPair,
-  sign() {
-    throw new AuthError(
-      'No XEdDSA signer configured. Pass a KeyPairProvider (see crypto/key-utils) ' +
-        'or call setDefaultKeyPairProvider().',
-    )
-  },
-}
+/** Provider bawaan: kurva 25519 + tanda tangan XEdDSA dari `crypto/key-utils`. */
+export const nodeKeyPairProvider: KeyPairProvider = curveKeyPairProvider
 
 let defaultProvider: KeyPairProvider = nodeKeyPairProvider
 
@@ -48,12 +30,6 @@ export function getDefaultKeyPairProvider(): KeyPairProvider {
 }
 
 // ---- credential generation ----------------------------------------------
-
-/** Tambah prefix 0x05 (tipe kunci Signal) bila public key 32 byte. */
-export function toSignalPubKey(pubKey: Uint8Array): Uint8Array {
-  if (pubKey.length === 33) return pubKey
-  return Buffer.concat([Buffer.from([5]), pubKey])
-}
 
 export function generateRegistrationId(): number {
   return randomBytes(2).readUInt16LE(0) & 16383
@@ -141,27 +117,4 @@ export function parseAuthData<T = unknown>(text: string): T {
   return JSON.parse(text, authJsonReviver) as T
 }
 
-// ---- mutex per key ---------------------------------------------------------
-
-/** Menjalankan task berurutan untuk key yang sama. */
-export class KeyedMutex {
-  readonly #tails = new Map<string, Promise<void>>()
-
-  async run<T>(key: string, task: () => Promise<T>): Promise<T> {
-    const previous = this.#tails.get(key) ?? Promise.resolve()
-    let release!: () => void
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    const tail = previous.then(() => gate)
-    this.#tails.set(key, tail)
-
-    await previous
-    try {
-      return await task()
-    } finally {
-      release()
-      if (this.#tails.get(key) === tail) this.#tails.delete(key)
-    }
-  }
-}
+export { KeyedMutex } from '../utils/mutex.js'
