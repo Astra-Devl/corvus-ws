@@ -1,0 +1,8 @@
+export type { BrowserDescription, Logger, ResolvedSocketConfig, SocketConfig } from '../core/socket-config.js'
+export type { ConnectionStatus } from '../core/socket-state.js'
+export type { CreateSocketOptions, SocketContext, SocketModule } from '../core/socket.js'
+export type { ConnectionUpdate } from '../core/event-mapping.js'
+export type { ConnectionHandshake, HandshakeIO } from '../connection/connection.js'
+export type { ReconnectOptions } from '../connection/reconnect.js'
+export type { Transport, TransportFactory } from '../transport/interface.js'
+export type { MakeSocketOptions, CorvusClient } from '../make-socket.js'
