@@ -50,7 +50,8 @@ export function createLimitStream(maxBytes: number): Transform {
   return new Transform({
     transform(chunk: Buffer, _enc, cb) {
       total += chunk.length
-      total > maxBytes ? cb(new StreamTooLargeError(maxBytes)) : cb(null, chunk)
+      if (total > maxBytes) cb(new StreamTooLargeError(maxBytes))
+      else cb(null, chunk)
     },
   })
 }
