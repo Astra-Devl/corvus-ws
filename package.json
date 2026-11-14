@@ -1,92 +1,68 @@
 {
-    "name": "corvus-ws",
-    "version": "1.0.0",
-    "description": "A modular WhatsApp Web API library built with TypeScript",
-    "keywords": [
-        "veylix",
-        "whatsapp",
-        "whatsapp-web",
-        "whatsapp-api",
-        "baileys",
-        "multi-device",
-        "whatsapp-bot",
-        "typescript",
-        "commonjs",
-        "esm",
-        "messaging",
-        "socket"
-    ],
-    "license": "MIT",
-    "author": "AstraCodeX",
-    "main": "./dist/cjs/index.js",
-    "module": "./dist/esm/index.js",
-    "types": "./dist/types/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./dist/types/index.d.ts",
-            "import": "./dist/esm/index.js",
-            "require": "./dist/cjs/index.js"
-        },
-        "./package.json": "./package.json"
+  "name": "corvus-ws",
+  "version": "0.1.0",
+  "description": "An independently built WhatsApp bot library",
+  "keywords": ["whatsapp", "whatsapp-web", "whatsapp-bot", "multi-device", "typescript", "websocket"],
+  "license": "MIT",
+  "author": "AstraCodeX",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Astra-Devl/corvus-ws.git"
+  },
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
     },
-    "files": [
-        "dist",
-        "README.md",
-        "LICENSE",
-        "NOTICE"
-    ],
-    "engines": {
-        "node": ">=20.0.0"
-    },
-    "scripts": {
-        "build": "tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && tsc -p tsconfig.types.json",
-        "build:cjs": "tsc -p tsconfig.cjs.json",
-        "build:esm": "tsc -p tsconfig.esm.json",
-        "build:types": "tsc -p tsconfig.types.json",
-        "dev": "tsc -p tsconfig.esm.json --watch",
-        "lint": "eslint src tests examples",
-        "lint:fix": "eslint src tests examples --fix",
-        "typecheck": "tsc -p tsconfig.types.json --noEmit",
-        "format": "prettier --write src tests examples",
-        "format:check": "prettier --check src tests examples",
-        "test": "node --test",
-        "test:core": "node --test tests/core/*.test.cjs",
-        "test:auth": "node --test tests/auth/*.test.cjs",
-        "test:store": "node --test tests/store/*.test.cjs",
-        "test:pairing": "node --test tests/pairing/*.test.cjs",
-        "test:protocol": "node --test tests/protocol/*.test.cjs",
-        "test:integration": "node --test tests/integration/*.test.cjs",
-        "check": "npm run lint && npm run typecheck && npm test",
-        "prepublishOnly": "npm run check && npm run build"
-    },
-    "dependencies": {
-        "@hapi/boom": "^10.0.1",
-        "@noble/curves": "^1.8.1",
-        "@noble/hashes": "^1.7.1",
-        "@protobuf-ts/runtime": "^2.9.4",
-        "axios": "^1.8.4",
-        "music-metadata": "^10.7.0",
-        "pino": "^9.6.0",
-        "protobufjs": "^7.4.0",
-        "qrcode": "^1.5.4",
-        "sharp": "^0.33.5",
-        "undici": "^7.5.0",
-        "uuid": "^11.1.0",
-        "ws": "^8.18.0",
-        "zod": "^3.24.2"
-    },
-    "devDependencies": {
-        "@eslint/js": "^9.22.0",
-        "@types/node": "^22.13.0",
-        "@types/qrcode": "^1.5.5",
-        "@types/ws": "^8.5.14",
-        "eslint": "^9.22.0",
-        "globals": "^16.0.0",
-        "prettier": "^3.5.3",
-        "typescript": "^5.8.2",
-        "typescript-eslint": "^8.26.0"
-    },
-    "publishConfig": {
-        "access": "public"
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": ["dist", "README.md", "LICENSE"],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:types && node scripts/postbuild.mjs",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:types": "tsc -p tsconfig.types.json",
+    "dev": "tsc -p tsconfig.esm.json --watch",
+    "typecheck": "tsc -p tsconfig.types.json --noEmit",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
+    "format": "prettier --write src tests",
+    "format:check": "prettier --check src tests",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "tsx tests/utils/utils-and-internal.smoke.mts",
+    "test:integration": "tsx tests/integration/make-socket.smoke.mts",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "prepublishOnly": "npm run check && npm run build"
+  },
+  "peerDependencies": {
+    "sharp": ">=0.33.0",
+    "ws": "^8.18.0"
+  },
+  "peerDependenciesMeta": {
+    "sharp": {
+      "optional": true
     }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "@types/node": "^22.13.0",
+    "@types/ws": "^8.5.14",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.0",
+    "prettier": "^3.5.3",
+    "tsx": "^4.19.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.26.0",
+    "ws": "^8.18.0"
+  }
 }
