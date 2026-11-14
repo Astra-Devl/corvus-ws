@@ -56,7 +56,6 @@ export class ReconnectManager implements SocketModule {
   readonly #policy: BackoffPolicy
   readonly #maxAttempts: number
   readonly #shouldReconnect: (error: Error) => boolean
-  #ctx: SocketContext | undefined
   #off: (() => void) | undefined
   #timer: ReturnType<typeof setTimeout> | undefined
   #attempt = 0
@@ -78,7 +77,6 @@ export class ReconnectManager implements SocketModule {
   }
 
   setup(ctx: SocketContext): void {
-    this.#ctx = ctx
     this.#cancelTimer()
     if (this.#off) return // langganan dipertahankan lintas koneksi
 
@@ -107,7 +105,6 @@ export class ReconnectManager implements SocketModule {
     this.stop()
     this.#off?.()
     this.#off = undefined
-    this.#ctx = undefined
   }
 
   #onClose(ctx: SocketContext, error: Error | undefined): void {
