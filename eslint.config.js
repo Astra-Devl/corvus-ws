@@ -19,5 +19,10 @@ export default tseslint.config(
       eqeqeq: ['error', 'always'],
     },
   },
+  {
+    // Smoke test memakai objek tiruan dinamis; `any` dibolehkan di sini.
+    files: ['tests/**/*.mts'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off', 'no-console': 'off' },
+  },
   prettier,
 )
