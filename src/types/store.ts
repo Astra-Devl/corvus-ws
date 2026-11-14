@@ -1,0 +1,6 @@
+export type { Chat } from '../store/chat-store.js'
+export type { Contact } from '../store/contact-store.js'
+export type { GroupMetadata, GroupParticipant } from '../store/group-store.js'
+export type { PresenceData, PresenceType } from '../store/session-store.js'
+export type { StoreAdapter, StoreSnapshot } from '../store/store-adapter.js'
+export type { StoreEventMap } from '../store/store-events.js'
