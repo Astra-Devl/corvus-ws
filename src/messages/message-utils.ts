@@ -35,7 +35,7 @@ const IGNORED_KEYS = new Set(['messageContextInfo', 'senderKeyDistributionMessag
 /** Nama field konten utama (mis. `conversation`, `imageMessage`). */
 export function getContentType(content: MessageContent | null | undefined): string | undefined {
   if (!content) return undefined
-  return Object.keys(content).find((k) => !IGNORED_KEYS.has(k) && content[k] != null)
+  return Object.keys(content).find((k) => !IGNORED_KEYS.has(k) && content[k] !== null && content[k] !== undefined)
 }
 
 const WRAPPERS = [
