@@ -102,3 +102,105 @@ export function isReconnectable(code: number | undefined): boolean {
     code !== DisconnectReason.connectionReplaced
   )
 }
+
+export class AuthError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_AUTH', ...options })
+  }
+}
+
+export class PairingError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_PAIRING', ...options })
+  }
+}
+
+export class ProtocolError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_PROTOCOL', ...options })
+  }
+}
+
+export class CryptoError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_CRYPTO', ...options })
+  }
+}
+
+export class MessageError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_MESSAGE', ...options })
+  }
+}
+
+export class StoreError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_STORE', ...options })
+  }
+}
+
+export class MediaError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_MEDIA', ...options })
+  }
+}
+
+export class GroupError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_GROUP', ...options })
+  }
+}
+
+export class ChatError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_CHAT', ...options })
+  }
+}
+
+export class ContactError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_CONTACT', ...options })
+  }
+}
+
+export class ChannelError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_CHANNEL', ...options })
+  }
+}
+
+export class CallError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_CALL', ...options })
+  }
+}
+
+export class PrivacyError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_PRIVACY', ...options })
+  }
+}
+
+export class BusinessError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_BUSINESS', ...options })
+  }
+}
+
+export class HistoryError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_HISTORY', ...options })
+  }
+}
+
+export class ValidationError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_VALIDATION', ...options })
+  }
+}
+
+export class CompatibilityError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_COMPATIBILITY', ...options })
+  }
+}
