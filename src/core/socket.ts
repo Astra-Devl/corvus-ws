@@ -30,6 +30,8 @@ export interface SocketContext {
   markOpen(update?: Omit<ConnectionUpdate, 'connection'>): void
   /** Tutup socket. Idempotent. */
   end(error?: Error): Promise<void>
+  /** Mulai koneksi (dipakai mis. oleh modul reconnect). */
+  connect(): Promise<void>
 }
 
 /** Titik ekstensi: layer lain didaftarkan ke socket sebagai modul. */
