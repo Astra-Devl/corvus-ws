@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import {
   makeSocket, createMemoryAuthState, createNodeCodec, NoiseHandler, ProtoWriter, readProto, protoBytes, sharedKey, generateKeyPair,
   initAuthCreds, MemoryKeyStore, createTransactionalKeyStore, CryptoEngine, padRandomMax16, unpadRandomMax16, authJsonReplacer, authJsonReviver,
-  MessageStatus, extractText, jidToSignalAddress, getChildren, getChild, getContentBytes, createLogger, MessageError,
+  MessageStatus, extractText, getChildren, getChild, getContentBytes, createLogger, MessageError,
   type MessageCodec, type BinaryNode,
 } from '../../src/index.ts'
 const { WebSocketServer } = createRequire(import.meta.url)('ws')
