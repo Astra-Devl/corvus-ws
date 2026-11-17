@@ -1,0 +1,57 @@
+// Tipe dasar yang dipakai banyak skema lain (tanpa dependensi).
+syntax = "proto2";
+package corvus;
+
+message MessageKey {
+  optional string remoteJid = 1;
+  optional bool fromMe = 2;
+  optional string id = 3;
+  optional string participant = 4;
+}
+
+message DeviceListMetadata {
+  optional bytes senderKeyHash = 1;
+  optional uint64 senderTimestamp = 2;
+  repeated uint32 senderKeyIndexes = 3 [packed = true];
+  optional bytes recipientKeyHash = 8;
+  optional uint64 recipientTimestamp = 9;
+  repeated uint32 recipientKeyIndexes = 10 [packed = true];
+}
+
+message MessageContextInfo {
+  optional DeviceListMetadata deviceListMetadata = 1;
+  optional int32 deviceListMetadataVersion = 2;
+  optional bytes messageSecret = 3;
+  optional bytes paddingBytes = 4;
+  optional uint32 messageAddOnDurationInSecs = 5;
+}
+
+message HistorySyncNotification {
+  optional bytes fileSha256 = 1;
+  optional uint64 fileLength = 2;
+  optional bytes mediaKey = 3;
+  optional bytes fileEncSha256 = 4;
+  optional string directPath = 5;
+  optional HistorySyncType syncType = 6;
+  optional uint32 chunkOrder = 7;
+  optional string originalMessageId = 8;
+  optional uint32 progress = 9;
+  optional int64 oldestMsgInChunkTimestampSec = 10;
+  optional bytes initialHistBootstrapInlinePayload = 11;
+  optional string peerDataRequestSessionId = 12;
+
+  enum HistorySyncType {
+    INITIAL_BOOTSTRAP = 0;
+    INITIAL_STATUS_V3 = 1;
+    FULL = 2;
+    RECENT = 3;
+    PUSH_NAME = 4;
+    NON_BLOCKING_DATA = 5;
+    ON_DEMAND = 6;
+  }
+}
+
+message Pushname {
+  optional string id = 1;
+  optional string pushname = 2;
+}
