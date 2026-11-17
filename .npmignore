@@ -1,0 +1,11 @@
+# `files` di package.json sudah membatasi isi paket; ini hanya pengaman tambahan.
+src/
+proto/
+tests/
+scripts/
+docs/
+.github/
+tsconfig*.json
+eslint.config.js
+.prettier*
+*.tgz
