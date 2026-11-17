@@ -1,0 +1,16 @@
+syntax = "proto2";
+package corvus;
+
+message ForwardedNewsletterMessageInfo {
+  optional string newsletterJid = 1;
+  optional int32 serverMessageId = 2;
+  optional string newsletterName = 3;
+  optional ContentType contentType = 4;
+  optional string accessibilityText = 5;
+
+  enum ContentType {
+    UPDATE = 1;
+    UPDATE_CARD = 2;
+    LINK_CARD = 3;
+  }
+}
