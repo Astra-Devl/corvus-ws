@@ -1,0 +1,31 @@
+name: Proto
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'proto/**'
+      - 'scripts/*proto*.cjs'
+      - '.github/workflows/proto.yml'
+  pull_request:
+    paths:
+      - 'proto/**'
+      - 'scripts/*proto*.cjs'
+      - '.github/workflows/proto.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Gagal bila skema bermasalah atau proto/generated tidak sinkron dengan proto/schemas.
+      - run: npm run proto:validate
+      - run: npm run test:proto
