@@ -1,0 +1,62 @@
+// Sinkronisasi riwayat chat.
+syntax = "proto2";
+package corvus;
+
+import "waCommon.proto";
+import "waGroup.proto";
+import "waWeb.proto";
+
+message HistorySync {
+  optional HistorySyncType syncType = 1;
+  repeated Conversation conversations = 2;
+  repeated WebMessageInfo statusV3Messages = 3;
+  optional uint32 chunkOrder = 5;
+  optional uint32 progress = 6;
+  repeated Pushname pushnames = 7;
+
+  enum HistorySyncType {
+    INITIAL_BOOTSTRAP = 0;
+    INITIAL_STATUS_V3 = 1;
+    FULL = 2;
+    RECENT = 3;
+    PUSH_NAME = 4;
+    NON_BLOCKING_DATA = 5;
+    ON_DEMAND = 6;
+  }
+}
+
+message HistorySyncMsg {
+  optional WebMessageInfo message = 1;
+  optional uint64 msgOrderId = 2;
+}
+
+message Conversation {
+  optional string id = 1;
+  repeated HistorySyncMsg messages = 2;
+  optional string newJid = 3;
+  optional string oldJid = 4;
+  optional uint64 lastMsgTimestamp = 5;
+  optional uint32 unreadCount = 6;
+  optional bool readOnly = 7;
+  optional bool endOfHistoryTransfer = 8;
+  optional uint32 ephemeralExpiration = 9;
+  optional int64 ephemeralSettingTimestamp = 10;
+  optional uint64 conversationTimestamp = 12;
+  optional string name = 13;
+  optional string pHash = 14;
+  optional bool notSpam = 15;
+  optional bool archived = 16;
+  optional uint32 unreadMentionCount = 18;
+  optional bool markedAsUnread = 19;
+  repeated GroupParticipant participant = 20;
+  optional uint32 pinned = 24;
+  optional uint64 muteEndTime = 25;
+  optional uint64 createdAt = 31;
+  optional string createdBy = 32;
+  optional string description = 33;
+  optional bool support = 34;
+  optional bool isParentGroup = 35;
+  optional bool isDefaultSubgroup = 36;
+  optional string parentGroupId = 37;
+  optional string displayName = 38;
+}
