@@ -1,0 +1,9 @@
+syntax = "proto2";
+package corvus;
+
+message Call {
+  optional bytes callKey = 1;
+  optional string conversionSource = 2;
+  optional bytes conversionData = 3;
+  optional uint32 conversionDelaySeconds = 4;
+}
