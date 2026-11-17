@@ -1,0 +1,24 @@
+syntax = "proto2";
+package corvus;
+
+message GroupParticipant {
+  optional string userJid = 1;
+  optional Rank rank = 2;
+
+  enum Rank {
+    REGULAR = 0;
+    ADMIN = 1;
+    SUPERADMIN = 2;
+  }
+}
+
+message PastParticipant {
+  optional string userJid = 1;
+  optional LeaveReason leaveReason = 2;
+  optional uint64 leaveTs = 3;
+
+  enum LeaveReason {
+    LEFT = 0;
+    REMOVED = 1;
+  }
+}
