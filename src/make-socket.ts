@@ -30,6 +30,7 @@ import { MediaManager } from './media/media-manager.js'
 import { createLazyProcessor, type MediaProcessor } from './media/media-processor.js'
 import { MessageReceiver, type PresenceKind } from './messages/message-receiver.js'
 import type { MessageCodec } from './messages/message-parser.js'
+import { createProtoMessageCodec } from './protocol/proto-message.js'
 import type { RelayDeps } from './messages/relay-message.js'
 import { MessageSender } from './messages/send-message.js'
 import { PairingManager, type PairingBackend } from './pairing/pairing-manager.js'
@@ -54,8 +55,8 @@ export interface MakeSocketOptions extends SocketConfig {
   id?: string
   /** Penyimpanan kredensial (`createMultiFileAuthState`, `createMemoryAuthState`, dst.). */
   auth: AuthStateProvider
-  /** Encode/decode isi pesan (WAProto `Message`). */
-  codec: MessageCodec
+  /** Encode/decode isi pesan. Default: `createProtoMessageCodec()` (skema protobuf `Message`). */
+  codec?: MessageCodec
   /** Tabel token protokol; tanpa ini string dikirim apa adanya dan frame server tidak bisa dibaca. */
   dictionary?: TokenDictionary
   /** ClientPayload (login/registrasi) ter-encode; mengaktifkan handshake Noise bawaan. */
@@ -134,11 +135,12 @@ export interface CorvusClient {
  */
 export function makeSocket(options: MakeSocketOptions): CorvusClient {
   const {
-    id, auth: authProvider, codec, dictionary, clientPayload, verifyServerCertificate, handshake, transportFactory,
+    id, auth: authProvider, codec: codecOption, dictionary, clientPayload, verifyServerCertificate, handshake, transportFactory,
     keepAlive, reconnect: reconnectOptions, store: storeOption, storeOptions, historyDecoder, appStateSync,
     pairingBackend, onPairSuccess, encodeDeviceIdentity, channelQueryIds, mediaProcessor, fetch: fetchImpl,
     saveCredsDebounceMs, callAutoReject, flags: flagsOption, keyPairProvider, ...socketConfig
   } = options
+  const codec: MessageCodec = codecOption ?? createProtoMessageCodec()
 
   const flags = flagsOption instanceof FeatureFlags ? flagsOption : new FeatureFlags(flagsOption)
   const socket = new CorvusSocket(socketConfig, id ? { id } : {})
