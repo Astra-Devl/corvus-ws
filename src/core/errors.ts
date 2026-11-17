@@ -204,3 +204,9 @@ export class CompatibilityError extends CorvusError {
     super(message, { code: 'ERR_COMPATIBILITY', ...options })
   }
 }
+
+export class VersionError extends CorvusError {
+  constructor(message: string, options: CorvusErrorOptions = {}) {
+    super(message, { code: 'ERR_VERSION', ...options })
+  }
+}
