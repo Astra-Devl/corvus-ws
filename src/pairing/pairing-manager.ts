@@ -124,7 +124,7 @@ export class PairingManager implements SocketModule {
         pairingCode: code,
         wrappedEphemeralKey: wrapped,
         noiseKeyPublic: creds.noiseKey.public,
-        platformDisplay: ctx.config.browser[1] + `(${ctx.config.browser[0]})`,
+        platformDisplay: `${ctx.config.browser[1]} (${ctx.config.browser[0]})`,
       })
     } catch (error) {
       this.handleFailure(toError(error))
