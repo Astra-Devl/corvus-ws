@@ -1,6 +1,6 @@
 {
   "name": "corvus-ws",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "An independently built WhatsApp bot library",
   "keywords": [
     "whatsapp",
