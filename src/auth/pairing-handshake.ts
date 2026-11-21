@@ -1,9 +1,3 @@
-/**
- * Payload login/registrasi (ClientPayload) dan penyelesaian pairing (`pair-success`).
- *
- * Alurnya mengikuti Utils/validate-connection milik @whiskeysockets/baileys 7.0.0-rc14
- * (MIT, https://github.com/WhiskeySockets/Baileys), ditulis ulang untuk API corvus-ws.
- */
 import { createHash, randomBytes } from 'node:crypto'
 import { decode, encode } from '../../proto/index.js'
 import { aesEncryptGCM, hkdf, hmacSha256 } from '../crypto/encryption.js'
@@ -278,4 +272,13 @@ export async function buildCompanionFinish(notification: BinaryNode, creds: Auth
       ],
     },
   }
+}
+
+/**
+ * `device-identity` yang harus menyertai pesan `pkmsg` (sesi Signal baru): identitas
+ * perangkat yang sudah ditandatangani akun, lengkap dengan `accountSignatureKey`.
+ */
+export function encodeDeviceIdentityFromCreds(creds: Pick<AuthCreds, 'account'>): Uint8Array | undefined {
+  if (!creds.account) return undefined
+  return encode('ADVSignedDeviceIdentity', creds.account as never)
 }
