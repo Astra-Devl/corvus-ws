@@ -24,6 +24,7 @@ export * from './version/index.js'
 
 export { proto, ProtoRegistry, type ProtoType, type ProtoNamespace } from '../proto/index.js'
 export { makeSocket, type MakeSocketOptions, type CorvusClient, type PairSuccessContext } from './make-socket.js'
+export type { SockApi, SockMessageContent, SockMediaSource, SockChatModification, SockSendMessage } from './sock-api.js'
 export { makeSocket as default } from './make-socket.js'
 export { FeatureFlags, DEFAULT_FLAGS, type FeatureFlagName } from './internal/feature-flags.js'
 export { checkCompatibility, assertCompatible, type CompatibilityReport } from './internal/compatibility.js'
