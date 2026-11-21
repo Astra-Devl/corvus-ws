@@ -23,10 +23,15 @@ export * from './privacy/index.js'
 export * from './version/index.js'
 
 export { proto, ProtoRegistry, type ProtoType, type ProtoNamespace } from '../proto/index.js'
-export { makeSocket, type MakeSocketOptions, type CorvusClient, type PairSuccessContext } from './make-socket.js'
+export { makeSocket, type MakeSocketOptions, type CorvusClient, type CorvusClientCore, type PairSuccessContext } from './make-socket.js'
 export type { SockApi, SockMessageContent, SockMediaSource, SockChatModification, SockSendMessage } from './sock-api.js'
 export { makeSocket as default } from './make-socket.js'
 export { FeatureFlags, DEFAULT_FLAGS, type FeatureFlagName } from './internal/feature-flags.js'
 export { checkCompatibility, assertCompatible, type CompatibilityReport } from './internal/compatibility.js'
 export { collectDiagnostics, formatDiagnostics, type Diagnostics } from './internal/diagnostics.js'
 export type { CorvusEvents, CorvusEventName } from './types/events.js'
+
+export {
+  buildClientPayload, buildLoginPayload, buildRegistrationPayload, buildCompanionFinish, configureSuccessfulPairing,
+  companionPlatformId, FALLBACK_WA_VERSION, type PayloadConfig, type PairSuccessResult, type CompanionFinishResult,
+} from './auth/pairing-handshake.js'
