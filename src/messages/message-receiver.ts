@@ -147,6 +147,7 @@ export class MessageReceiver implements SocketModule {
   #onMessageAck(node: BinaryNode): void {
     const { id, from } = node.attrs
     if (!id || !from || !this.#ctx) return
+    if (node.attrs.error) this.#logger.warn({ id, to: from, error: node.attrs.error }, 'pesan ditolak server')
     this.#ctx.ev.emit('messages.update', [
       {
         key: { remoteJid: from, fromMe: true, id, ...(node.attrs.participant && { participant: node.attrs.participant }) },
