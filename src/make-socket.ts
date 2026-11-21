@@ -45,6 +45,9 @@ import type { TransportFactory } from './transport/interface.js'
 import type { CorvusEvents } from './types/events.js'
 import { attachSockApi, type SockApi } from './sock-api.js'
 
+/** ID platform untuk `companion_platform_id` (tebakan terbaik; belum diverifikasi ke server asli). */
+const PLATFORM_IDS: Record<string, string> = { chrome: '1', firefox: '2', ie: '3', opera: '4', safari: '5', edge: '6', desktop: '7' }
+
 export interface PairSuccessContext {
   pairing: PairingManager
   engine: ProtocolEngine
@@ -74,6 +77,7 @@ export interface MakeSocketOptions extends SocketConfig {
   storeOptions?: InMemoryStoreOptions
   historyDecoder?: HistoryDecoder
   appStateSync?: AppStateSync
+  /** Opsional: backend pairing code kustom. Default: stanza `link_code_companion_reg` bawaan. */
   pairingBackend?: PairingBackend
   /** Menangani `pair-success` (verifikasi ADV + penyimpanan identitas); belum disediakan library. */
   onPairSuccess?: (node: BinaryNode, context: PairSuccessContext) => Promise<void> | void
@@ -119,6 +123,7 @@ export interface CorvusClientCore {
   end(error?: Error): Promise<void>
   /** Keluarkan perangkat ini dari akun dan hapus kredensial lokal. */
   logout(): Promise<void>
+  /** Minta pairing code. Koneksi dimulai otomatis bila belum aktif. */
   requestPairingCode(phoneNumber: string, customCode?: string): Promise<string>
   sendNode(node: BinaryNode): Promise<void>
   query(node: BinaryNode, timeoutMs?: number): Promise<BinaryNode>
@@ -245,7 +250,29 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
   const detachHistory = history?.attach(socket.ev)
 
   // ---- modul socket ----
-  const pairing = new PairingManager({ auth: authProvider.state, ...(pairingBackend && { backend: pairingBackend }) })
+  // Backend pairing code bawaan: mengirim stanza `link_code_companion_reg` (tahap `companion_hello`).
+  const defaultPairingBackend: PairingBackend = {
+    async sendCodeRequest(request) {
+      await query({
+        tag: 'iq',
+        attrs: { to: S_WHATSAPP_NET, type: 'set', id: engine.generateTag(), xmlns: 'md' },
+        content: [
+          {
+            tag: 'link_code_companion_reg',
+            attrs: { jid: `${request.phoneNumber}@s.whatsapp.net`, stage: 'companion_hello', should_show_push_notification: 'true' },
+            content: [
+              { tag: 'link_code_pairing_wrapped_companion_ephemeral_pub', attrs: {}, content: request.wrappedEphemeralKey },
+              { tag: 'companion_server_auth_key_pub', attrs: {}, content: request.noiseKeyPublic },
+              { tag: 'companion_platform_id', attrs: {}, content: PLATFORM_IDS[socket.config.browser[1].toLowerCase()] ?? '1' },
+              { tag: 'companion_platform_display', attrs: {}, content: request.platformDisplay },
+              { tag: 'link_code_pairing_nonce', attrs: {}, content: '0' },
+            ],
+          },
+        ],
+      })
+    },
+  }
+  const pairing = new PairingManager({ auth: authProvider.state, backend: pairingBackend ?? defaultPairingBackend })
   const reconnect = reconnectOptions === false ? undefined : new ReconnectManager(reconnectOptions ?? {})
   const groupEvents = new GroupEventsModule({ engine, onChange: (jid) => groups.invalidate(jid), logger })
   const callEvents = new CallEventsModule({ engine, onCall: (call) => calls.handle(call), logger })
@@ -327,7 +354,11 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
       await socket.end(createDisconnectError(DisconnectReason.loggedOut, 'Intentional logout'))
       await auth.reset()
     },
-    requestPairingCode: (phone, custom) => pairing.requestPairingCode(phone, custom),
+    async requestPairingCode(phone, custom) {
+      // Bergaya Baileys: boleh dipanggil langsung setelah makeSocket(); koneksi dimulai otomatis bila belum aktif.
+      if (!socket.state.isActive) await socket.connect()
+      return pairing.requestPairingCode(phone, custom)
+    },
     sendNode,
     query,
     sendPresenceUpdate,
