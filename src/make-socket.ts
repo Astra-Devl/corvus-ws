@@ -43,6 +43,7 @@ import type { TokenDictionary } from './protocol/token-dictionary.js'
 import { InMemoryStore, type InMemoryStoreOptions } from './store/in-memory-store.js'
 import type { TransportFactory } from './transport/interface.js'
 import type { CorvusEvents } from './types/events.js'
+import { attachSockApi, type SockApi } from './sock-api.js'
 
 export interface PairSuccessContext {
   pairing: PairingManager
@@ -87,7 +88,7 @@ export interface MakeSocketOptions extends SocketConfig {
   keyPairProvider?: KeyPairProvider
 }
 
-export interface CorvusClient {
+export interface CorvusClientCore {
   readonly id: string
   readonly socket: CorvusSocket
   readonly ev: TypedEventEmitter<CorvusEvents>
@@ -127,6 +128,9 @@ export interface CorvusClient {
   /** Lepas semua listener/langganan internal (panggil setelah `end()`). */
   dispose(): void
 }
+
+/** Klien lengkap: modul (`messages`, `groups`, ...) + alias bergaya Baileys (`sendMessage`, `groupMetadata`, ...). */
+export type CorvusClient = CorvusClientCore & SockApi
 
 /**
  * Merakit seluruh library menjadi satu klien. Urutan modul: auth, pairing,
@@ -294,7 +298,7 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
     }
   })
 
-  const client: CorvusClient = {
+  const core: CorvusClientCore = {
     id: socket.id,
     socket,
     ev: socket.ev as unknown as TypedEventEmitter<CorvusEvents>,
@@ -340,5 +344,5 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
       offOpen()
     },
   }
-  return client
+  return attachSockApi(core)
 }
