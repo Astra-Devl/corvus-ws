@@ -33,5 +33,5 @@ export type { CorvusEvents, CorvusEventName } from './types/events.js'
 
 export {
   buildClientPayload, buildLoginPayload, buildRegistrationPayload, buildCompanionFinish, configureSuccessfulPairing,
-  companionPlatformId, FALLBACK_WA_VERSION, type PayloadConfig, type PairSuccessResult, type CompanionFinishResult,
+  companionPlatformId, encodeDeviceIdentityFromCreds, FALLBACK_WA_VERSION, type PayloadConfig, type PairSuccessResult, type CompanionFinishResult,
 } from './auth/pairing-handshake.js'
