@@ -1,7 +1,7 @@
 import { LIBRARY_NAME } from './core/constants.js'
 
 /** Versi library (sinkronkan dengan `package.json`). */
-export const VERSION = '1.0.1'
+export const VERSION = '1.0.2'
 
 export { LIBRARY_NAME }
 
