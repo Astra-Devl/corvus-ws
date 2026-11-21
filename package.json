@@ -1,6 +1,6 @@
 {
   "name": "corvus-ws",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "An independently built WhatsApp bot library",
   "keywords": [
     "whatsapp",
@@ -62,13 +62,14 @@
     "format:check": "prettier --check src proto tests",
     "proto:generate": "tsx scripts/generate-proto.cjs",
     "proto:validate": "tsx scripts/validate-proto.cjs",
-    "test": "npm run test:unit && npm run test:proto && npm run test:version && npm run test:integration",
+    "test": "npm run test:unit && npm run test:proto && npm run test:version && npm run test:integration && npm run test:pairing",
     "test:unit": "tsx tests/utils/utils-and-internal.smoke.mts",
     "test:proto": "tsx tests/proto/proto.smoke.mts",
     "test:version": "tsx tests/version/version.smoke.mts",
     "test:integration": "tsx tests/integration/make-socket.smoke.mts",
     "check": "npm run lint && npm run typecheck && npm run proto:validate && npm test",
-    "prepublishOnly": "npm run check && npm run build"
+    "prepublishOnly": "npm run check && npm run build",
+    "test:pairing": "tsx tests/integration/pairing-handshake.smoke.mts"
   },
   "peerDependencies": {
     "sharp": ">=0.33.0",
