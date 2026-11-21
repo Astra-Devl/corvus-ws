@@ -216,6 +216,7 @@ export interface ClientPayload {
   paddingBytes?: Uint8Array | null
   yearClass?: number | null
   memClass?: number | null
+  lidDbMigrated?: boolean | null
 }
 
 export interface ClientPayload_UserAgent {
@@ -266,6 +267,19 @@ export interface DeviceProps_HistorySyncConfig {
   inlineInitialPayloadInE2EeMsg?: boolean | null
   recentSyncDaysLimit?: number | null
   supportCallLogHistory?: boolean | null
+  supportBotUserAgentChatHistory?: boolean | null
+  supportCagReactionsAndPolls?: boolean | null
+  supportBizHostedMsg?: boolean | null
+  supportRecentSyncChunkMessageCountTuning?: boolean | null
+  supportHostedGroupMsg?: boolean | null
+  supportFbidBotChatHistory?: boolean | null
+  supportAddOnHistorySyncMigration?: boolean | null
+  supportMessageAssociation?: boolean | null
+  supportGroupHistory?: boolean | null
+  onDemandReady?: boolean | null
+  supportGuestChat?: boolean | null
+  completeOnDemandReady?: boolean | null
+  thumbnailSyncDaysLimit?: number | null
 }
 
 export interface SignalMessage {
@@ -881,6 +895,13 @@ export const waDescriptor: FileDescriptor = {
           "type": "int32",
           "label": "optional",
           "packed": false
+        },
+        {
+          "name": "lidDbMigrated",
+          "number": 41,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
         }
       ],
       "oneofs": []
@@ -1166,6 +1187,97 @@ export const waDescriptor: FileDescriptor = {
           "name": "supportCallLogHistory",
           "number": 6,
           "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportBotUserAgentChatHistory",
+          "number": 7,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportCagReactionsAndPolls",
+          "number": 8,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportBizHostedMsg",
+          "number": 9,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportRecentSyncChunkMessageCountTuning",
+          "number": 10,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportHostedGroupMsg",
+          "number": 11,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportFbidBotChatHistory",
+          "number": 12,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportAddOnHistorySyncMigration",
+          "number": 13,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportMessageAssociation",
+          "number": 14,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportGroupHistory",
+          "number": 15,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "onDemandReady",
+          "number": 16,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "supportGuestChat",
+          "number": 17,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "completeOnDemandReady",
+          "number": 18,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "thumbnailSyncDaysLimit",
+          "number": 19,
+          "type": "uint32",
           "label": "optional",
           "packed": false
         }
