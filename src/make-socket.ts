@@ -46,7 +46,7 @@ import type { CorvusEvents } from './types/events.js'
 import { attachSockApi, type SockApi } from './sock-api.js'
 import { activeIq, buildPreKeyUpload, INITIAL_PREKEY_COUNT, MIN_PREKEY_COUNT, preKeyCountQuery } from './auth/prekey-upload.js'
 import {
-  buildClientPayload, buildCompanionFinish, companionPlatformId, configureSuccessfulPairing, FALLBACK_WA_VERSION,
+  buildClientPayload, buildCompanionFinish, companionPlatformId, configureSuccessfulPairing, encodeDeviceIdentityFromCreds, FALLBACK_WA_VERSION,
 } from './auth/pairing-handshake.js'
 
 export interface PairSuccessContext {
@@ -226,7 +226,8 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
     },
     resolveDevices: (jids) => contacts.getDevices(jids),
     getGroupParticipants: (jid) => groups.getParticipants(jid),
-    ...(encodeDeviceIdentity && { encodeDeviceIdentity }),
+    // wajib agar pesan `pkmsg` diterima server; default: identitas dari hasil pairing
+    encodeDeviceIdentity: encodeDeviceIdentity ?? (() => encodeDeviceIdentityFromCreds(auth.creds)),
     logger,
   }
   const messages = new MessageSender({
