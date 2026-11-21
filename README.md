@@ -1,4 +1,4 @@
-<h1 align="center">🐦‍⬛ corvus-ws</h1>
+<h1 align="center">corvus-ws</h1>
 
 <p align="center">Library WhatsApp Web (multi-device) berbasis TypeScript & WebSocket, dibuat sendiri tanpa browser.</p>
 
@@ -47,7 +47,8 @@ Versi **0.1.0**. Hasil pengecekan kode & test bawaan (semua lulus):
 - Test berjalan melawan **server WhatsApp tiruan**, jadi belum terbukti dengan server asli.
 - **Token dictionary bawaan kosong.** Isi `dictionary` dan `clientPayload` agar bisa bicara dengan server asli.
 - **`onPairSuccess` belum disediakan library**, tulis sendiri handler setelah scan QR.
-- Pairing code butuh `pairingBackend`; channel butuh `channelQueryIds`; fitur chat butuh `appStateSync`.
+- Pairing code: permintaan kode (`requestPairingCode`) sudah bawaan, tapi tahap penyelesaiannya (saat kode dimasukkan di HP) tetap butuh `onPairSuccess`. Format stanza belum diverifikasi ke server asli.
+- Channel butuh `channelQueryIds`; fitur chat butuh `appStateSync`.
 - Belum ada helper untuk poll, event/calendar message, dan status/story.
 - Button/list/interactive belum diverifikasi di perangkat penerima asli.
 
@@ -134,9 +135,12 @@ sock.ev.on('connection.update', ({ qr }) => {
 
 ### Login via Pairing Code
 
-Butuh `pairingBackend` di `makeSocket({...})`.
+Bisa dipanggil langsung di bawah `sock`, tanpa `connect()` manual. Koneksi dimulai otomatis.
 
 ```js
+const sock = makeSocket({ auth })
+sock.ev.on('creds.update', () => auth.saveCreds())
+
 if (!sock.auth.isRegistered) {
   const code = await sock.requestPairingCode('6281234567890')   // tanpa + dan tanpa 0 di depan
   console.log('Kode pairing:', code)
@@ -144,6 +148,8 @@ if (!sock.auth.isRegistered) {
   // await sock.requestPairingCode('6281234567890', 'CORVUS12')
 }
 ```
+
+Opsi `pairingBackend` bersifat opsional, hanya untuk mengganti pengiriman stanza bawaan.
 
 ### Reconnect
 
@@ -181,7 +187,7 @@ const sock = makeSocket({
 | `store` | `false` untuk mematikan store |
 | `channelQueryIds` | Doc-ID fitur channel |
 | `appStateSync` | Backend fitur chat |
-| `pairingBackend` | Backend pairing code |
+| `pairingBackend` | Opsional: backend pairing code kustom (default bawaan) |
 | `reconnect` | Opsi reconnect atau `false` |
 
 ### Logout & tutup
