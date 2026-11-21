@@ -44,9 +44,10 @@ import { InMemoryStore, type InMemoryStoreOptions } from './store/in-memory-stor
 import type { TransportFactory } from './transport/interface.js'
 import type { CorvusEvents } from './types/events.js'
 import { attachSockApi, type SockApi } from './sock-api.js'
-
-/** ID platform untuk `companion_platform_id` (tebakan terbaik; belum diverifikasi ke server asli). */
-const PLATFORM_IDS: Record<string, string> = { chrome: '1', firefox: '2', ie: '3', opera: '4', safari: '5', edge: '6', desktop: '7' }
+import { activeIq, buildPreKeyUpload, INITIAL_PREKEY_COUNT, MIN_PREKEY_COUNT, preKeyCountQuery } from './auth/prekey-upload.js'
+import {
+  buildClientPayload, buildCompanionFinish, companionPlatformId, configureSuccessfulPairing, FALLBACK_WA_VERSION,
+} from './auth/pairing-handshake.js'
 
 export interface PairSuccessContext {
   pairing: PairingManager
@@ -87,6 +88,8 @@ export interface MakeSocketOptions extends SocketConfig {
   mediaProcessor?: MediaProcessor | 'auto'
   fetch?: typeof fetch
   saveCredsDebounceMs?: number
+  /** Setelah login: unggah pre-key bila server kekurangan dan kirim `passive/active` (default `true`). */
+  postLogin?: boolean
   callAutoReject?: CallManagerOptions['autoReject']
   flags?: FeatureFlags | Record<string, boolean>
   keyPairProvider?: KeyPairProvider
@@ -147,7 +150,7 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
     id, auth: authProvider, codec: codecOption, dictionary, clientPayload, verifyServerCertificate, handshake, transportFactory,
     keepAlive, reconnect: reconnectOptions, store: storeOption, storeOptions, historyDecoder, appStateSync,
     pairingBackend, onPairSuccess, encodeDeviceIdentity, channelQueryIds, mediaProcessor, fetch: fetchImpl,
-    saveCredsDebounceMs, callAutoReject, flags: flagsOption, keyPairProvider, ...socketConfig
+    saveCredsDebounceMs, callAutoReject, flags: flagsOption, keyPairProvider, postLogin, ...socketConfig
   } = options
   const codec: MessageCodec = codecOption ?? createProtoMessageCodec()
 
@@ -159,11 +162,19 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
   const auth = new AuthSessionManager(authProvider, authOptions)
   const crypto = new CryptoEngine({ keys: auth.keys, getCreds: () => auth.creds })
 
+  // ClientPayload bawaan: login (akun terdaftar) atau registrasi (perangkat baru).
+  const defaultClientPayload: NoiseHandshakeOptions['buildClientPayload'] = () =>
+    buildClientPayload(auth.creds, {
+      version: socket.config.version ?? FALLBACK_WA_VERSION,
+      browser: socket.config.browser,
+      syncFullHistory: socket.config.syncFullHistory,
+    })
   const noise =
     handshake ??
-    (clientPayload
-      ? crypto.createNoiseHandshake({ buildClientPayload: clientPayload, ...(verifyServerCertificate && { verifyServerCertificate }) })
-      : undefined)
+    crypto.createNoiseHandshake({
+      buildClientPayload: clientPayload ?? defaultClientPayload,
+      ...(verifyServerCertificate && { verifyServerCertificate }),
+    })
   const connection = new ConnectionModule({
     ...(noise && { handshake: noise }),
     ...(dictionary && { dictionary }),
@@ -250,20 +261,24 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
   const detachHistory = history?.attach(socket.ev)
 
   // ---- modul socket ----
-  // Backend pairing code bawaan: mengirim stanza `link_code_companion_reg` (tahap `companion_hello`).
+  // Backend pairing code bawaan: stanza `link_code_companion_reg` tahap `companion_hello`
+  // (dikirim tanpa menunggu balasan; server menjawab lewat notifikasi, lihat handler di bawah).
   const defaultPairingBackend: PairingBackend = {
     async sendCodeRequest(request) {
-      await query({
+      const jid = `${request.phoneNumber}@s.whatsapp.net`
+      // JID sementara untuk tahap `companion_finish`.
+      socket.ev.emit('creds.update', { me: { id: jid, name: '~' } })
+      await sendNode({
         tag: 'iq',
         attrs: { to: S_WHATSAPP_NET, type: 'set', id: engine.generateTag(), xmlns: 'md' },
         content: [
           {
             tag: 'link_code_companion_reg',
-            attrs: { jid: `${request.phoneNumber}@s.whatsapp.net`, stage: 'companion_hello', should_show_push_notification: 'true' },
+            attrs: { jid, stage: 'companion_hello', should_show_push_notification: 'true' },
             content: [
               { tag: 'link_code_pairing_wrapped_companion_ephemeral_pub', attrs: {}, content: request.wrappedEphemeralKey },
               { tag: 'companion_server_auth_key_pub', attrs: {}, content: request.noiseKeyPublic },
-              { tag: 'companion_platform_id', attrs: {}, content: PLATFORM_IDS[socket.config.browser[1].toLowerCase()] ?? '1' },
+              { tag: 'companion_platform_id', attrs: {}, content: companionPlatformId(socket.config.browser) },
               { tag: 'companion_platform_display', attrs: {}, content: request.platformDisplay },
               { tag: 'link_code_pairing_nonce', attrs: {}, content: '0' },
             ],
@@ -297,11 +312,61 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
     pairing.startQr(refs)
   })
   engine.on({ tag: 'iq', child: 'pair-success' }, async (node) => {
-    if (!onPairSuccess) {
-      logger.warn('pair-success received but no onPairSuccess handler is configured')
+    if (onPairSuccess) {
+      await onPairSuccess(node, { pairing, engine, auth, query })
       return
     }
-    await onPairSuccess(node, { pairing, engine, auth, query })
+    // Penanganan bawaan: verifikasi ADV, tandatangani identitas perangkat, simpan akun.
+    try {
+      const { creds, reply } = configureSuccessfulPairing(node, auth.creds)
+      await sendNode(reply)
+      pairing.handlePaired(creds)
+    } catch (error) {
+      logger.error({ err: error }, 'pair-success gagal diproses')
+      pairing.handleFailure(error instanceof Error ? error : new Error(String(error)))
+    }
+  })
+
+  // ---- pairing code: HP mengirim notifikasi setelah kode dimasukkan → balas `companion_finish` ----
+  engine.on({ tag: 'notification', attrs: { type: 'link_code_companion_reg' }, child: 'link_code_companion_reg' }, async (node) => {
+    try {
+      const { node: finish, advSecretKey } = await buildCompanionFinish(node, auth.creds)
+      socket.ev.emit('creds.update', { advSecretKey })
+      await query({ ...finish, attrs: { ...finish.attrs, id: engine.generateTag() } })
+      socket.ev.emit('creds.update', { registered: true })
+    } catch (error) {
+      logger.error({ err: error }, 'companion_finish gagal')
+      pairing.handleFailure(error instanceof Error ? error : new Error(String(error)))
+    }
+  })
+
+  // ---- pasca-login: unggah pre-key + aktifkan sesi ----
+  const uploadPreKeys = async (count: number): Promise<void> => {
+    const { update, node } = await auth.keys.transaction(() => buildPreKeyUpload(auth.creds, auth.keys, count), auth.creds.me?.id ?? 'upload-pre-keys')
+    socket.ev.emit('creds.update', update)
+    await query(node)
+    logger.info({ count }, 'pre-key terunggah')
+  }
+  const runPostLogin = async (): Promise<void> => {
+    try {
+      const have = Number(getChild(await query(preKeyCountQuery()), 'count')?.attrs.value ?? 0)
+      const target = have === 0 ? INITIAL_PREKEY_COUNT : MIN_PREKEY_COUNT
+      if (have <= target) await uploadPreKeys(target)
+      await query(activeIq())
+    } catch (error) {
+      logger.warn({ err: error }, 'langkah pasca-login gagal')
+    }
+  }
+  // server memberi tahu bila pre-key menipis
+  engine.on({ tag: 'notification', attrs: { type: 'encrypt' }, child: 'count' }, async () => {
+    try {
+      await uploadPreKeys(MIN_PREKEY_COUNT)
+    } catch (error) {
+      logger.warn({ err: error }, 'unggah pre-key (notifikasi) gagal')
+    }
+  })
+  const offPostLogin = postLogin === false ? undefined : socket.ev.on('connection.update', (update) => {
+    if (update.connection === 'open' && auth.creds.registered) void runPostLogin()
   })
 
   // ---- presence ----
@@ -373,6 +438,7 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
       detachHistory?.()
       unbindStore?.()
       offOpen()
+      offPostLogin?.()
     },
   }
   return attachSockApi(core)
