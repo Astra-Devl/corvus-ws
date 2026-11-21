@@ -1,4 +1,5 @@
 import { ProtocolError } from '../core/errors.js'
+import { DEFAULT_DOUBLE_TOKENS, DEFAULT_SINGLE_TOKENS } from './default-tokens.js'
 import { TAGS } from './protocol-types.js'
 
 export interface TokenLocation {
@@ -40,6 +41,11 @@ export class TokenDictionary {
     })
   }
 
+  /** Tabel token protokol WhatsApp Web bawaan (lihat `default-tokens.ts`). */
+  static builtin(): TokenDictionary {
+    return new TokenDictionary({ single: DEFAULT_SINGLE_TOKENS, doubles: DEFAULT_DOUBLE_TOKENS })
+  }
+
   static empty(): TokenDictionary {
     return new TokenDictionary({ single: [''] })
   }
@@ -79,11 +85,11 @@ export class TokenDictionary {
   }
 }
 
-let defaultDictionary = TokenDictionary.empty()
+let defaultDictionary = TokenDictionary.builtin()
 
 /**
- * Kamus bawaan KOSONG: isi dengan tabel token protokol yang sebenarnya
- * (`TokenDictionary.fromJSON`) sebelum berkomunikasi dengan server.
+ * Kamus bawaan berisi tabel token protokol WhatsApp Web. Ganti dengan
+ * `TokenDictionary.fromJSON(...)` / `TokenDictionary.empty()` bila perlu.
  */
 export function setDefaultTokenDictionary(dictionary: TokenDictionary): void {
   defaultDictionary = dictionary
