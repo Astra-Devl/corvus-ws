@@ -146,7 +146,7 @@ client.dispose(); server.close()
 // ---------- pairing via QR ----------
 {
   const got: BinaryNode[] = []
-  const srv = await startServer((n) => { got.push(n) })
+  const srv = await startServer((n, c) => { got.push(n); if (n.attrs.xmlns === 'md') c.send({ tag: 'iq', attrs: { type: 'result', id: n.attrs.id! } }) })
   const fresh = createMemoryAuthState()
   const cl = makeSocket({ url: srv.url, auth: fresh, codec, clientPayload: () => Buffer.from('reg'), markOnlineOnConnect: false, reconnect: false, store: false, qrFirstTtlMs: 40 } as any)
   const qrs: string[] = []; cl.ev.on('connection.update', (u) => { if (u.qr) qrs.push(u.qr) })
@@ -155,9 +155,16 @@ client.dispose(); server.close()
   await until(() => qrs.length >= 1, 3000, 'qr'); const parts = qrs[0]!.split(',')
   assert.equal(parts.length, 4); assert.equal(parts[0], 'REF-AAA'); assert.equal(parts[1], Buffer.from(fresh.state.creds.noiseKey.public).toString('base64')); assert.equal(parts[2], Buffer.from(fresh.state.creds.signedIdentityKey.public).toString('base64')); assert.equal(parts[3], fresh.state.creds.advSecretKey)
   await until(() => got.some((n) => n.tag === 'iq' && n.attrs.id === 'P1'), 3000, 'jawaban pair-device'); assert.deepEqual([got.find((n) => n.attrs.id === 'P1')!.attrs.type, got.find((n) => n.attrs.id === 'P1')!.attrs.to], ['result', 's.whatsapp.net'])
-  assert.equal(cl.pairing.state.status, 'pending'); await assert.rejects(cl.requestPairingCode('6281234567890'), /no backend/)
+  assert.equal(cl.pairing.state.status, 'pending'); const pcode = await cl.requestPairingCode('+62 812-3456-7890'); assert.match(pcode, /^[1-9A-HJ-NP-TV-Z]{8}$/)
+  const reg = got.find((n) => n.tag === 'iq' && n.attrs.xmlns === 'md')!; const lc = getChild(reg, 'link_code_companion_reg')!
+  assert.deepEqual([reg.attrs.type, lc.attrs.jid, lc.attrs.stage], ['set', '6281234567890@s.whatsapp.net', 'companion_hello'])
+  assert.deepEqual(getChildren(lc, 'link_code_pairing_nonce').length + getChildren(lc, 'companion_platform_id').length + getChildren(lc, 'companion_server_auth_key_pub').length + getChildren(lc, 'link_code_pairing_wrapped_companion_ephemeral_pub').length, 4)
   const warns: string[] = []; const cl2 = makeSocket({ url: srv.url, auth: createMemoryAuthState(), codec, clientPayload: () => Buffer.from('x'), reconnect: false, logger: createLogger({ level: 'warn', write: (l) => warns.push(JSON.parse(l).msg) }) })
   await cl2.connect(); await cl2.waitForOpen(3000); srv.conns[1]!.send({ tag: 'iq', attrs: { id: 'PS1', type: 'set' }, content: [{ tag: 'pair-success', attrs: {} }] }); await until(() => warns.some((w) => /pair-success/.test(w)), 3000, 'warn pair-success')
-  await cl.end(); await cl2.end(); cl.dispose(); cl2.dispose(); srv.close(); ok('9. pairing QR + pair-success tanpa handler')
+  // requestPairingCode tanpa connect() manual: koneksi dimulai otomatis
+  const cl3 = makeSocket({ url: srv.url, auth: createMemoryAuthState(), codec, clientPayload: () => Buffer.from('y'), markOnlineOnConnect: false, reconnect: false, store: false })
+  const code3 = await cl3.requestPairingCode('6281234567890', 'ABCD2345'); assert.equal(code3, 'ABCD2345'); assert.equal(cl3.state.status, 'open')
+  assert.ok(srv.conns[2]!.got.some((n) => n.tag === 'iq' && n.attrs.xmlns === 'md'))
+  await cl.end(); await cl2.end(); await cl3.end(); cl.dispose(); cl2.dispose(); cl3.dispose(); srv.close(); ok('9. pairing QR + pair-success tanpa handler + pairing code (auto-connect)')
 }
 console.log('ALL OK'); setTimeout(() => process.exit(0), 50)
