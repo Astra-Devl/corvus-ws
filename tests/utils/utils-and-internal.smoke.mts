@@ -103,7 +103,7 @@ ok('buffer + stream')
   e.set('receive.sendReceipts', true); assert.ok(e.isEnabled('receive.sendReceipts')); assert.equal(typeof e.all()['baru'], 'boolean')
   const rep = await checkCompatibility(); assert.deepEqual([rep.ok, rep.issues, rep.node === process.versions.node], [true, [], true]); assert.deepEqual(Object.keys(rep.optional), ['ws', 'sharp', 'ffmpeg']); assert.equal((await assertCompatible()).ok, true)
   const s = createSocket({}); const d = collectDiagnostics({ id: s.id, state: s.state, config: s.config, modules: s.modules, ev: s.ev }); assert.deepEqual([d.version, d.status, d.store, d.pendingQueries], [VERSION, 'idle', undefined, undefined])
-  assert.ok(!JSON.stringify(d).includes('auth')); assert.match(formatDiagnostics(d), /corvus-ws 1\.0\.3.*\nsocket .*: idle/); assert.equal(USER_AGENT, `corvus-ws/${VERSION}`)
+  assert.ok(!JSON.stringify(d).includes('auth')); assert.match(formatDiagnostics(d), /corvus-ws 1\.0\.4.*\nsocket .*: idle/); assert.equal(USER_AGENT, `corvus-ws/${VERSION}`)
   ok('internal')
 }
 console.log('ALL OK'); setTimeout(() => process.exit(0), 20)
