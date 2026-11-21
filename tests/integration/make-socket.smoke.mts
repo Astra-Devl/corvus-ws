@@ -156,15 +156,37 @@ client.dispose(); server.close()
   assert.equal(parts.length, 4); assert.equal(parts[0], 'REF-AAA'); assert.equal(parts[1], Buffer.from(fresh.state.creds.noiseKey.public).toString('base64')); assert.equal(parts[2], Buffer.from(fresh.state.creds.signedIdentityKey.public).toString('base64')); assert.equal(parts[3], fresh.state.creds.advSecretKey)
   await until(() => got.some((n) => n.tag === 'iq' && n.attrs.id === 'P1'), 3000, 'jawaban pair-device'); assert.deepEqual([got.find((n) => n.attrs.id === 'P1')!.attrs.type, got.find((n) => n.attrs.id === 'P1')!.attrs.to], ['result', 's.whatsapp.net'])
   assert.equal(cl.pairing.state.status, 'pending'); const pcode = await cl.requestPairingCode('+62 812-3456-7890'); assert.match(pcode, /^[1-9A-HJ-NP-TV-Z]{8}$/)
+  await until(() => got.some((n) => n.tag === 'iq' && n.attrs.xmlns === 'md'), 3000, 'link_code_companion_reg')
   const reg = got.find((n) => n.tag === 'iq' && n.attrs.xmlns === 'md')!; const lc = getChild(reg, 'link_code_companion_reg')!
   assert.deepEqual([reg.attrs.type, lc.attrs.jid, lc.attrs.stage], ['set', '6281234567890@s.whatsapp.net', 'companion_hello'])
   assert.deepEqual(getChildren(lc, 'link_code_pairing_nonce').length + getChildren(lc, 'companion_platform_id').length + getChildren(lc, 'companion_server_auth_key_pub').length + getChildren(lc, 'link_code_pairing_wrapped_companion_ephemeral_pub').length, 4)
   const warns: string[] = []; const cl2 = makeSocket({ url: srv.url, auth: createMemoryAuthState(), codec, clientPayload: () => Buffer.from('x'), reconnect: false, logger: createLogger({ level: 'warn', write: (l) => warns.push(JSON.parse(l).msg) }) })
-  await cl2.connect(); await cl2.waitForOpen(3000); srv.conns[1]!.send({ tag: 'iq', attrs: { id: 'PS1', type: 'set' }, content: [{ tag: 'pair-success', attrs: {} }] }); await until(() => warns.some((w) => /pair-success/.test(w)), 3000, 'warn pair-success')
+  await cl2.connect(); await cl2.waitForOpen(3000); srv.conns[1]!.send({ tag: 'iq', attrs: { id: 'PS1', type: 'set' }, content: [{ tag: 'pair-success', attrs: {} }] }); await until(() => warns.some((w) => /pair-success/.test(w)), 3000, 'log pair-success gagal')
   // requestPairingCode tanpa connect() manual: koneksi dimulai otomatis
-  const cl3 = makeSocket({ url: srv.url, auth: createMemoryAuthState(), codec, clientPayload: () => Buffer.from('y'), markOnlineOnConnect: false, reconnect: false, store: false })
+  const cl3 = makeSocket({ url: srv.url, auth: createMemoryAuthState(), codec, markOnlineOnConnect: false, reconnect: false, store: false })
   const code3 = await cl3.requestPairingCode('6281234567890', 'ABCD2345'); assert.equal(code3, 'ABCD2345'); assert.equal(cl3.state.status, 'open')
-  assert.ok(srv.conns[2]!.got.some((n) => n.tag === 'iq' && n.attrs.xmlns === 'md'))
+  await until(() => srv.conns[2]!.got.some((n) => n.tag === 'iq' && n.attrs.xmlns === 'md'), 3000, 'companion_hello cl3')
   await cl.end(); await cl2.end(); await cl3.end(); cl.dispose(); cl2.dispose(); cl3.dispose(); srv.close(); ok('9. pairing QR + pair-success tanpa handler + pairing code (auto-connect)')
 }
+// ---------- pasca-login: unggah pre-key + passive/active ----------
+{
+  const got: BinaryNode[] = []
+  const srv = await startServer((n, c) => {
+    got.push(n)
+    if (n.tag !== 'iq') return
+    const content = n.attrs.xmlns === 'encrypt' && n.attrs.type === 'get' ? [{ tag: 'count', attrs: { value: '0' } }] : undefined
+    c.send({ tag: 'iq', attrs: { type: 'result', id: n.attrs.id! }, ...(content && { content }) } as BinaryNode)
+  })
+  const reg = createMemoryAuthState(); reg.state.creds.registered = true; reg.state.creds.me = { id: 'me:7@s.whatsapp.net' }
+  const cl = makeSocket({ url: srv.url, auth: reg, codec, clientPayload: () => Buffer.from('login'), markOnlineOnConnect: false, reconnect: false, store: false })
+  await cl.connect(); await cl.waitForOpen(3000)
+  await until(() => got.some((n) => n.attrs.xmlns === 'passive'), 5000, 'passive/active')
+  const up = got.find((n) => n.attrs.xmlns === 'encrypt' && n.attrs.type === 'set')!
+  assert.equal((getChild(up, 'list')!.content as BinaryNode[]).length, 812)
+  assert.deepEqual((up.content as BinaryNode[]).map((c) => c.tag), ['registration', 'type', 'identity', 'list', 'skey'])
+  assert.ok(cl.auth.creds.nextPreKeyId >= 813)
+  assert.ok(cl.auth.creds.firstUnuploadedPreKeyId >= 813)
+  await cl.end(); cl.dispose(); srv.close(); ok('10. pasca-login: unggah 812 pre-key + active')
+}
+
 console.log('ALL OK'); setTimeout(() => process.exit(0), 50)
