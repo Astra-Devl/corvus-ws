@@ -3,7 +3,7 @@ import {
   createNodeCodec, TokenDictionary, initAuthCreds, generateKeyPair, sharedKey, hkdf, hmacSha256,
 } from '../../src/index.ts'
 import {
-  buildLoginPayload, buildRegistrationPayload, buildCompanionFinish, configureSuccessfulPairing, companionPlatformId,
+  buildLoginPayload, buildRegistrationPayload, buildCompanionFinish, configureSuccessfulPairing, companionPlatformId, encodeDeviceIdentityFromCreds,
   WA_ADV_ACCOUNT_SIG_PREFIX, WA_ADV_DEVICE_SIG_PREFIX,
 } from '../../src/auth/pairing-handshake.ts'
 import { decode, encode } from '../../proto/index.ts'
@@ -69,4 +69,12 @@ const advPrimary = hkdf(Buffer.concat([companionShared, sharedKey(primaryId.priv
 assert.equal(fin.advSecretKey, advPrimary)
 assert.deepEqual(['Chrome', 'Edge', 'Firefox', 'Safari', 'Desktop', 'Foo'].map((b) => companionPlatformId(['Ubuntu', b, '1'])), ['1', '2', '3', '6', '7', '9'])
 ok('4. pairing code: companion_finish + advSecretKey konsisten')
+// 5. device-identity untuk pesan pkmsg: hasil pairing → bytes yang bisa didekode server
+assert.equal(encodeDeviceIdentityFromCreds({}), undefined)
+const credsPaired = { ...creds, account: good.creds.account }
+const encId = encodeDeviceIdentityFromCreds(credsPaired)!
+const decId = decode('ADVSignedDeviceIdentity', encId)
+assert.equal(Buffer.from(decId.accountSignatureKey!).toString('hex'), Buffer.from(accountKey.public).toString('hex'))
+assert.ok(decId.deviceSignature && decId.deviceSignature.length === 64)
+ok('5. device-identity untuk pkmsg tersedia dari hasil pairing')
 console.log('ALL OK')
