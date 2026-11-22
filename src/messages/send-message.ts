@@ -5,7 +5,7 @@ import type { BinaryNode } from '../protocol/protocol-types.js'
 import { generateWAMessage, type GenerateOptions, type MessageInput } from './generate-message.js'
 import type { MessageKey } from './message-key.js'
 import { buildReadReceipts } from './message-receipt.js'
-import { getBizNodes, relayMessage, type RelayDeps, type RelayResult } from './relay-message.js'
+import { getButtonNodes, relayMessage, type RelayDeps, type RelayResult } from './relay-message.js'
 import type { WAMessage } from './message-utils.js'
 
 export interface MessageSenderOptions {
@@ -22,7 +22,10 @@ export interface SendOptions extends Omit<GenerateOptions, 'quoted' | 'userJid'>
   /** Quote berdasarkan key (membutuhkan `loadMessage`). */
   quotedKey?: MessageKey
   additionalNodes?: BinaryNode[]
-  /** Sertakan node `<biz>` untuk pesan list/interaktif (belum diverifikasi; lihat `getBizNodes`). */
+  /**
+   * Sertakan node `<biz>` agar pesan button/list/interaktif dirender (default `true`;
+   * lewati otomatis bila `additionalNodes` sudah memuat `<biz>`). Isi `false` untuk menonaktifkan.
+   */
   bizNodes?: boolean
   participants?: string[]
 }
@@ -59,10 +62,9 @@ export class MessageSender {
       ...(quoted && { quoted }),
     })
     const content = message.message!
-    const additionalNodes = [
-      ...(options.bizNodes ? getBizNodes(content) : []),
-      ...(options.additionalNodes ?? []),
-    ]
+    const custom = options.additionalNodes ?? []
+    const autoNodes = options.bizNodes === false || custom.some((n) => n.tag === 'biz') ? [] : getButtonNodes(content, jid)
+    const additionalNodes = [...autoNodes, ...custom]
 
     const relay = await relayMessage(this.#deps, jid, content, {
       messageId: message.key.id,
