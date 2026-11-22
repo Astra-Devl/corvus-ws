@@ -44,6 +44,8 @@ import { InMemoryStore, type InMemoryStoreOptions } from './store/in-memory-stor
 import type { TransportFactory } from './transport/interface.js'
 import type { CorvusEvents } from './types/events.js'
 import { attachSockApi, type SockApi } from './sock-api.js'
+import { LidMappingStore } from './signal/lid-mapping.js'
+import { TcTokenStore } from './signal/tc-token.js'
 import { activeIq, buildPreKeyUpload, INITIAL_PREKEY_COUNT, MIN_PREKEY_COUNT, preKeyCountQuery } from './auth/prekey-upload.js'
 import {
   buildClientPayload, buildCompanionFinish, companionPlatformId, configureSuccessfulPairing, encodeDeviceIdentityFromCreds, FALLBACK_WA_VERSION,
@@ -199,7 +201,20 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
   const unbindStore = store?.bind(socket.ev)
 
   // ---- manajer ----
-  const contacts = new ContactManager({ query, generateTag: engine.generateTag, ev: socket.ev, logger })
+  // PN <-> LID dan token privasi (alamat sesi & stanza pesan 1:1 mengikuti Baileys v7)
+  const lidMapping = new LidMappingStore({ keys: auth.keys, fetchLids: (pns: string[]): Promise<Array<{ lid: string; pn: string }>> => contacts.fetchLids(pns), logger })
+  const tcTokens = new TcTokenStore({
+    keys: auth.keys,
+    query,
+    toStorageJid: async (jid) => (await lidMapping.getLid(jid)) ?? jid,
+  })
+  const contacts = new ContactManager({
+    query,
+    generateTag: engine.generateTag,
+    onLidMappings: (pairs: Array<{ lid: string; pn: string }>): Promise<void> => lidMapping.store(pairs),
+    ev: socket.ev,
+    logger,
+  })
   const groups = new GroupManager({ query, ev: socket.ev })
   const communities = new CommunityManager({ query, groups, ev: socket.ev })
   const channels = new ChannelManager({ query, sendNode, generateTag: engine.generateTag, codec, ...(channelQueryIds && { queryIds: channelQueryIds }) })
@@ -224,7 +239,17 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
     get ownJid() {
       return requireOwnJid()
     },
+    get ownLid() {
+      return auth.creds.me?.lid
+    },
     resolveDevices: (jids) => contacts.getDevices(jids),
+    resolveSignalJid: (jid) => lidMapping.resolveSignalJid(jid, { fetch: true }),
+    getTcToken: (jid) => tcTokens.get(jid),
+    onDirectSent: (jid) => {
+      const own = auth.creds.me
+      if (own && (jid.split('@')[0]?.split(':')[0] === own.id.split('@')[0]?.split(':')[0] || (own.lid && jid.split('@')[0]?.split(':')[0] === own.lid.split('@')[0]?.split(':')[0]))) return
+      void tcTokens.issueIfNeeded(jid)
+    },
     getGroupParticipants: (jid) => groups.getParticipants(jid),
     // wajib agar pesan `pkmsg` diterima server; default: identitas dari hasil pairing
     encodeDeviceIdentity: encodeDeviceIdentity ?? (() => encodeDeviceIdentityFromCreds(auth.creds)),
@@ -297,6 +322,14 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
     crypto,
     codec,
     getOwnJid,
+    getOwnLid: () => auth.creds.me?.lid,
+    storeLidMappings: (pairs) => lidMapping.store(pairs),
+    resolveSignalJid: (jid) => lidMapping.resolveSignalJid(jid),
+    onPrivacyToken: (node) => tcTokens.storeFromTokens(node, node.attrs.sender_lid ?? node.attrs.from),
+    onAckError: (code, node) => {
+      // 463: pesan 1:1 tanpa token privasi → minta token untuk lawan bicara (tanpa kirim ulang)
+      if (code === '463' && node.attrs.from) void tcTokens.issue(node.attrs.from).then((r) => tcTokens.storeFromTokens(r, node.attrs.from)).catch(() => undefined)
+    },
     sendReceipts: flags.isEnabled('receive.sendReceipts'),
     nackOnDecryptError: flags.isEnabled('receive.nackOnDecryptError'),
     onDevicesChanged: (user) => contacts.invalidateDevices(user),
@@ -352,6 +385,8 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
   }
   const runPostLogin = async (): Promise<void> => {
     try {
+      const me = auth.creds.me
+      if (me?.id && me.lid) await lidMapping.store([{ lid: me.lid, pn: me.id }])
       const have = Number(getChild(await query(preKeyCountQuery()), 'count')?.attrs.value ?? 0)
       const target = have === 0 ? INITIAL_PREKEY_COUNT : MIN_PREKEY_COUNT
       if (have <= target) await uploadPreKeys(target)
