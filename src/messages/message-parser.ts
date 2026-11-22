@@ -6,6 +6,7 @@ import { getChildren } from '../protocol/binary-node.js'
 import type { BinaryNode } from '../protocol/protocol-types.js'
 import type { MessageKey } from './message-key.js'
 import { isSameUser, jidKind, type MessageContent, type WAMessage } from './message-utils.js'
+import { LID_SERVER } from '../utils/jid.js'
 
 /** Encode/decode isi pesan <-> bytes (biasanya protobuf WAProto `Message`). */
 export interface MessageCodec {
@@ -35,10 +36,13 @@ export interface ParsedMessageNode {
   pushName?: string | undefined
   type?: string | undefined
   category?: string | undefined
+  /** Pasangan alamat pengirim (PN <-> LID) yang dibawa server, bila ada. */
+  senderAlt?: string | undefined
+  recipientAlt?: string | undefined
   encs: EncNode[]
 }
 
-export function parseMessageNode(node: BinaryNode, ownJid?: string): ParsedMessageNode {
+export function parseMessageNode(node: BinaryNode, ownJid?: string, ownLid?: string): ParsedMessageNode {
   if (node.tag !== 'message') throw new MessageError(`Expected <message>, got <${node.tag}>`)
   const { id, from, participant, recipient, t, notify, type, category } = node.attrs
   if (!id || !from) throw new MessageError('Message node is missing id/from')
@@ -57,6 +61,12 @@ export function parseMessageNode(node: BinaryNode, ownJid?: string): ParsedMessa
 
   const author = participant ?? from
   const ts = Number(t)
+  // alamat pasangan (PN <-> LID); semantik sama dengan extractAddressingContext milik Baileys
+  const lidAddressed = (node.attrs.addressing_mode ?? (author.endsWith(`@${LID_SERVER}`) ? 'lid' : 'pn')) === 'lid'
+  const senderAlt = lidAddressed
+    ? (node.attrs.participant_pn ?? node.attrs.sender_pn ?? node.attrs.peer_recipient_pn)
+    : (node.attrs.participant_lid ?? node.attrs.sender_lid ?? node.attrs.peer_recipient_lid)
+  const recipientAlt = lidAddressed ? node.attrs.recipient_pn : node.attrs.recipient_lid
   return {
     id,
     from,
@@ -64,11 +74,13 @@ export function parseMessageNode(node: BinaryNode, ownJid?: string): ParsedMessa
     recipient,
     author,
     isGroup: jidKind(from) === 'group' || jidKind(from) === 'broadcast',
-    isFromMe: ownJid !== undefined && isSameUser(author, ownJid),
+    isFromMe: (ownJid !== undefined && isSameUser(author, ownJid)) || (ownLid !== undefined && isSameUser(author, ownLid)),
     timestamp: Number.isFinite(ts) && t !== undefined ? ts : Math.floor(Date.now() / 1000),
     pushName: notify,
     type,
     category,
+    ...(senderAlt && { senderAlt }),
+    ...(recipientAlt && { recipientAlt }),
     encs,
   }
 }
@@ -86,6 +98,8 @@ export function messageKeyOf(parsed: ParsedMessageNode): MessageKey {
 export interface DecryptDeps {
   crypto: Pick<CryptoEngine, 'sessions' | 'senderKeys'>
   codec: MessageCodec
+  /** PN -> LID bila sudah dipetakan; sesi 1:1 disimpan di bawah alamat LID. */
+  resolveSignalJid?: (jid: string) => Promise<string>
 }
 
 /**
@@ -94,6 +108,7 @@ export interface DecryptDeps {
  */
 export async function decryptMessageNode(parsed: ParsedMessageNode, deps: DecryptDeps): Promise<WAMessage> {
   const address = jidToSignalAddress(parsed.author)
+  const sessionAddress = jidToSignalAddress((await deps.resolveSignalJid?.(parsed.author)) ?? parsed.author)
   let content: MessageContent | undefined
   let lastError: unknown
 
@@ -102,7 +117,7 @@ export async function decryptMessageNode(parsed: ParsedMessageNode, deps: Decryp
       const plain =
         enc.type === 'skmsg'
           ? await deps.crypto.senderKeys.decrypt(`${parsed.from}::${address}`, enc.ciphertext)
-          : await deps.crypto.sessions.decrypt(address, enc.type, enc.ciphertext)
+          : await deps.crypto.sessions.decrypt(sessionAddress, enc.type, enc.ciphertext)
 
       const decoded = deps.codec.decode(unpadRandomMax16(plain))
       const { senderKeyDistributionMessage: dist, ...rest } = decoded
