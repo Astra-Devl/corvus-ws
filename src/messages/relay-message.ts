@@ -5,6 +5,7 @@ import type { TransactionalKeyStore } from '../auth/key-store.js'
 import type { CryptoEngine } from '../crypto/crypto-engine.js'
 import { padRandomMax16 } from '../crypto/encryption.js'
 import { jidToSignalAddress, type PreKeyBundle } from '../crypto/session.js'
+import { isLidUser, jidDecode } from '../utils/jid.js'
 import { getChild, getChildren, getContentBytes } from '../protocol/binary-node.js'
 import type { ProtocolEngine } from '../protocol/protocol-engine.js'
 import type { BinaryNode } from '../protocol/protocol-types.js'
@@ -15,7 +16,6 @@ import type { MessageCodec } from './message-parser.js'
 import {
   getContentType,
   isGroupJid,
-  isSameUser,
   jidNormalizedUser,
   normalizeMessageContent,
   type MessageContent,
@@ -35,6 +35,14 @@ export interface RelayDeps {
   fetchBundles?: (jids: string[]) => Promise<Record<string, PreKeyBundle>>
   /** ADVSignedDeviceIdentity ter-encode, dikirim bersama pkmsg. */
   encodeDeviceIdentity?: () => Uint8Array | undefined
+  /** LID akun sendiri (mis. `1234:0@lid`); dipakai untuk chat beralamat LID. */
+  ownLid?: string | undefined
+  /** PN -> LID bila sudah dipetakan; dipakai untuk alamat sesi Signal dan pengambilan pre-key. */
+  resolveSignalJid?: (jid: string) => Promise<string>
+  /** Token privasi (`tctoken`) untuk pesan 1:1. */
+  getTcToken?: (jid: string) => Promise<Uint8Array | undefined>
+  /** Dipanggil setelah pesan 1:1 terkirim (mis. untuk menerbitkan tctoken). */
+  onDirectSent?: (jid: string) => void
   logger?: Logger
 }
 
@@ -166,23 +174,39 @@ export async function fetchPreKeyBundles(
 
 const sameDevice = (a: string, b: string): boolean => jidToSignalAddress(a) === jidToSignalAddress(b)
 
+const userOf = (jid: string): string | undefined => jidDecode(jid)?.user
+
+/** Apakah `jid` milik akun sendiri (PN maupun LID)? */
+const isOwnUser = (deps: RelayDeps, jid: string): boolean => {
+  const user = userOf(jid)
+  return user !== undefined && (user === userOf(deps.ownJid) || (deps.ownLid !== undefined && user === userOf(deps.ownLid)))
+}
+
+/** Apakah `jid` persis perangkat yang sedang mengirim (PN atau LID)? */
+const isExactSender = (deps: RelayDeps, jid: string): boolean =>
+  sameDevice(jid, deps.ownJid) || (deps.ownLid !== undefined && sameDevice(jid, deps.ownLid))
+
+const signalJidOf = async (deps: RelayDeps, jid: string): Promise<string> => (await deps.resolveSignalJid?.(jid)) ?? jid
+
 async function ensureSessions(deps: RelayDeps, jids: string[]): Promise<{ ready: string[]; skipped: string[] }> {
-  const missing: string[] = []
+  const missing: Array<{ jid: string; signalJid: string }> = []
   const ready: string[] = []
   for (const jid of jids) {
-    if (await deps.crypto.sessions.hasSession(jidToSignalAddress(jid))) ready.push(jid)
-    else missing.push(jid)
+    const signalJid = await signalJidOf(deps, jid)
+    if (await deps.crypto.sessions.hasSession(jidToSignalAddress(signalJid))) ready.push(jid)
+    else missing.push({ jid, signalJid })
   }
   const skipped: string[] = []
   if (missing.length > 0) {
-    const bundles = await (deps.fetchBundles ?? ((j) => fetchPreKeyBundles(deps.engine, j)))(missing)
-    for (const jid of missing) {
-      const bundle = bundles[jid]
+    // pre-key diminta untuk JID yang dipakai sebagai alamat sesi (LID bila sudah dipetakan)
+    const bundles = await (deps.fetchBundles ?? ((j) => fetchPreKeyBundles(deps.engine, j)))(missing.map((m) => m.signalJid))
+    for (const { jid, signalJid } of missing) {
+      const bundle = bundles[signalJid]
       if (!bundle) {
         skipped.push(jid)
         continue
       }
-      await deps.crypto.sessions.injectBundle(jidToSignalAddress(jid), bundle)
+      await deps.crypto.sessions.injectBundle(jidToSignalAddress(signalJid), bundle)
       ready.push(jid)
     }
   }
@@ -196,7 +220,8 @@ async function encryptFor(
   mediaType: string | undefined,
 ): Promise<{ node: BinaryNode; isPreKey: boolean }> {
   const plaintext = padRandomMax16(deps.codec.encode(content))
-  const { type, ciphertext } = await deps.crypto.sessions.encrypt(jidToSignalAddress(jid), plaintext)
+  const signalJid = await signalJidOf(deps, jid)
+  const { type, ciphertext } = await deps.crypto.sessions.encrypt(jidToSignalAddress(signalJid), plaintext)
   return {
     isPreKey: type === 'pkmsg',
     node: {
@@ -239,7 +264,7 @@ export async function relayMessage(
     const members = options.participants ?? (await deps.getGroupParticipants?.(jid))
     if (!members?.length) throw new MessageError('Group participants are unknown', { data: { jid } })
 
-    const devices = (await deps.resolveDevices(members)).filter((d) => !sameDevice(d, deps.ownJid))
+    const devices = (await deps.resolveDevices(members)).filter((d) => !isExactSender(deps, d))
     const senderKeyId = `${jid}::${jidToSignalAddress(deps.ownJid)}`
     const memory = { ...(await deps.keys.get('sender-key-memory', [jid]))[jid] }
 
@@ -270,8 +295,10 @@ export async function relayMessage(
     }
   } else {
     const peerUser = jidNormalizedUser(jid)
-    const devices = [...new Set(await deps.resolveDevices([...new Set([peerUser, ownUser])]))].filter(
-      (d) => !sameDevice(d, deps.ownJid),
+    // chat beralamat LID memakai identitas LID sendiri (seperti Baileys)
+    const ownIdentity = isLidUser(jid) && deps.ownLid ? jidNormalizedUser(deps.ownLid) : ownUser
+    const devices = [...new Set(await deps.resolveDevices([...new Set([peerUser, ownIdentity])]))].filter(
+      (d) => !isExactSender(deps, d),
     )
     const sessions = await ensureSessions(deps, devices)
     skipped = sessions.skipped
@@ -281,7 +308,7 @@ export async function relayMessage(
       ...(content.messageContextInfo && { messageContextInfo: content.messageContextInfo }),
     }
     for (const device of sessions.ready) {
-      const own = isSameUser(device, ownUser)
+      const own = isOwnUser(deps, device)
       const { node, isPreKey } = await encryptFor(deps, device, own ? forOwnDevices : content, mediaType)
       participantNodes.push(node)
       recipients.push(device)
@@ -301,10 +328,16 @@ export async function relayMessage(
     if (!identity) logger.warn({ id }, 'pkmsg sent without device identity (encodeDeviceIdentity not provided)')
     else children.push({ tag: 'device-identity', attrs: {}, content: identity })
   }
+  const isDirect = !isGroupJid(jid) && options.attrs?.category !== 'peer'
+  if (isDirect) {
+    const token = await deps.getTcToken?.(jid)
+    if (token?.length) children.push({ tag: 'tctoken', attrs: {}, content: token })
+  }
   children.push(...extra)
 
   const node: BinaryNode = { tag: 'message', attrs, content: children }
   await deps.engine.sendNode(node)
+  if (isDirect) deps.onDirectSent?.(jid)
   await rememberSenders?.()
   logger.debug({ id, jid, recipients: recipients.length, skipped: skipped.length }, 'message relayed')
 
