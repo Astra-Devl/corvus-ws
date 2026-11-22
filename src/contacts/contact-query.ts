@@ -57,7 +57,7 @@ export function parseDevices(user: BinaryNode): DeviceInfo[] {
     return {
       jid: jidEncode(decoded.user, decoded.server, id),
       id,
-      keyIndex: d.attrs['key-index'] !== undefined ? Number(d.attrs['key-index']) : undefined,
+      keyIndex: d.attrs['key-index'] !== undefined && Number.isFinite(Number(d.attrs['key-index'])) ? Number(d.attrs['key-index']) : undefined,
       isHosted: d.attrs.is_hosted === 'true',
     }
   })
