@@ -15,6 +15,7 @@ export interface SignalDataTypeMap {
   'app-state-sync-key': Placeholder
   'app-state-sync-version': Placeholder
   'lid-mapping': string
+  tctoken: { token: Uint8Array; timestamp?: string | undefined; senderTimestamp?: number | undefined }
   'device-list': string[]
 }
 
