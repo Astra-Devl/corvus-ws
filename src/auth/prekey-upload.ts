@@ -1,3 +1,7 @@
+/**
+ * Unggah pre-key ke server (xmlns `encrypt`) dan langkah pasca-login lain.
+ * Format stanza mengikuti Utils/signal milik @whiskeysockets/baileys (MIT).
+ */
 import { generateKeyPair } from '../crypto/key-utils.js'
 import { S_WHATSAPP_NET } from '../protocol/stanza-builder.js'
 import type { BinaryNode } from '../protocol/protocol-types.js'
