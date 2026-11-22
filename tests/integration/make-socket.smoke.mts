@@ -164,7 +164,7 @@ client.dispose(); server.close()
   await cl2.connect(); await cl2.waitForOpen(3000); srv.conns[1]!.send({ tag: 'iq', attrs: { id: 'PS1', type: 'set' }, content: [{ tag: 'pair-success', attrs: {} }] }); await until(() => warns.some((w) => /pair-success/.test(w)), 3000, 'log pair-success gagal')
   // requestPairingCode tanpa connect() manual: koneksi dimulai otomatis
   const cl3 = makeSocket({ url: srv.url, auth: createMemoryAuthState(), codec, markOnlineOnConnect: false, reconnect: false, store: false })
-  const code3 = await cl3.requestPairingCode('6281234567890', 'ABCD2345'); assert.equal(code3, 'ABCD2345'); assert.equal(cl3.state.status, 'open')
+  const code3 = await cl3.requestPairingCode('6281234567890', 'ABCD2345'); assert.equal(code3, 'ABCD2345'); assert.equal(cl3.state.status, 'open'); assert.equal(cl3.auth.isRegistered, false); assert.equal(cl3.auth.creds.me, undefined)
   await until(() => srv.conns[2]!.got.some((n) => n.tag === 'iq' && n.attrs.xmlns === 'md'), 3000, 'companion_hello cl3')
   await cl.end(); await cl2.end(); await cl3.end(); cl.dispose(); cl2.dispose(); cl3.dispose(); srv.close(); ok('9. pairing QR + pair-success tanpa handler + pairing code (auto-connect)')
 }
