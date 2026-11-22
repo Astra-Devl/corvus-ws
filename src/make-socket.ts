@@ -262,13 +262,13 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
   const detachHistory = history?.attach(socket.ev)
 
   // ---- modul socket ----
+  let pendingPairingJid: string | undefined
   // Backend pairing code bawaan: stanza `link_code_companion_reg` tahap `companion_hello`
   // (dikirim tanpa menunggu balasan; server menjawab lewat notifikasi, lihat handler di bawah).
   const defaultPairingBackend: PairingBackend = {
     async sendCodeRequest(request) {
       const jid = `${request.phoneNumber}@s.whatsapp.net`
-      // JID sementara untuk tahap `companion_finish`.
-      socket.ev.emit('creds.update', { me: { id: jid, name: '~' } })
+      pendingPairingJid = jid // dipakai tahap `companion_finish` (tidak disimpan ke kredensial)
       await sendNode({
         tag: 'iq',
         attrs: { to: S_WHATSAPP_NET, type: 'set', id: engine.generateTag(), xmlns: 'md' },
@@ -310,7 +310,7 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
       .map((r) => getContentString(r))
       .filter((r): r is string => !!r)
     await sendNode({ tag: 'iq', attrs: { to: S_WHATSAPP_NET, type: 'result', ...(node.attrs.id && { id: node.attrs.id }) } })
-    pairing.startQr(refs)
+    if (!auth.creds.pairingCode) pairing.startQr(refs) // mode pairing code: tidak perlu QR
   })
   engine.on({ tag: 'iq', child: 'pair-success' }, async (node) => {
     if (onPairSuccess) {
@@ -331,10 +331,12 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
   // ---- pairing code: HP mengirim notifikasi setelah kode dimasukkan → balas `companion_finish` ----
   engine.on({ tag: 'notification', attrs: { type: 'link_code_companion_reg' }, child: 'link_code_companion_reg' }, async (node) => {
     try {
-      const { node: finish, advSecretKey } = await buildCompanionFinish(node, auth.creds)
+      const { node: finish, advSecretKey } = await buildCompanionFinish(node, {
+        ...auth.creds,
+        me: { id: pendingPairingJid ?? auth.creds.me?.id ?? '' },
+      })
       socket.ev.emit('creds.update', { advSecretKey })
       await query({ ...finish, attrs: { ...finish.attrs, id: engine.generateTag() } })
-      socket.ev.emit('creds.update', { registered: true })
     } catch (error) {
       logger.error({ err: error }, 'companion_finish gagal')
       pairing.handleFailure(error instanceof Error ? error : new Error(String(error)))
