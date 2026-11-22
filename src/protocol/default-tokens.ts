@@ -1,3 +1,15 @@
+/**
+ * Tabel token biner protokol WhatsApp Web (kamus byte-tunggal dan 4 kamus byte-ganda).
+ *
+ * Data ini diturunkan dari WABinary/constants milik @whiskeysockets/baileys 7.0.0-rc14
+ * (https://github.com/WhiskeySockets/Baileys), lisensi MIT:
+ *
+ *   MIT License. Copyright (c) 2025 Rajeh Taher/WhiskeySockets
+ *   Izin diberikan untuk memakai, menyalin, mengubah, dan mendistribusikan dengan syarat
+ *   pemberitahuan hak cipta ini disertakan pada semua salinan atau bagian penting dari karya ini.
+ *
+ * Urutan token HARUS sama persis dengan server. Jangan diurutkan ulang.
+ */
 export const DEFAULT_SINGLE_TOKENS: readonly string[] = [
   "",
   "xmlstreamstart",
