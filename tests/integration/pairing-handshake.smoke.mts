@@ -10,6 +10,7 @@ import { decode, encode } from '../../proto/index.ts'
 import { sign, verify } from '../../src/crypto/key-utils.ts'
 import { wrapEphemeralPublicKey } from '../../src/pairing/code-pairing.ts'
 import { createDecipheriv } from 'node:crypto'
+import { ContactManager } from '../../src/contacts/contact-manager.ts'
 const ok = (n: string) => console.log(n, 'ok')
 
 // 1. kamus token bawaan + byte-identik dengan keluaran Baileys (rc14)
@@ -77,4 +78,17 @@ const decId = decode('ADVSignedDeviceIdentity', encId)
 assert.equal(Buffer.from(decId.accountSignatureKey!).toString('hex'), Buffer.from(accountKey.public).toString('hex'))
 assert.ok(decId.deviceSignature && decId.deviceSignature.length === 64)
 ok('5. device-identity untuk pkmsg tersedia dari hasil pairing')
+// 6. pencarian device ala Baileys: konteks `message` + protokol `lid`; device non-zero tanpa key-index dibuang
+let sent: any
+const cm = new ContactManager({
+  generateTag: () => 'sid1',
+  query: async (node: any) => { sent = node; return { tag: 'iq', attrs: { type: 'result' }, content: [{ tag: 'usync', attrs: {}, content: [{ tag: 'list', attrs: {}, content: [
+    { tag: 'user', attrs: { jid: '6281234567890@s.whatsapp.net' }, content: [{ tag: 'devices', attrs: {}, content: [{ tag: 'device-list', attrs: {}, content: [
+      { tag: 'device', attrs: { id: '0' } }, { tag: 'device', attrs: { id: '2', 'key-index': '5' } }, { tag: 'device', attrs: { id: '3' } }] }] }] }] }] }] } },
+} as any)
+const devs = await cm.getDevices(['6281234567890@s.whatsapp.net'])
+assert.deepEqual(devs, ['6281234567890@s.whatsapp.net', '6281234567890:2@s.whatsapp.net'])
+const us = (sent.content as any[])[0]
+assert.equal(us.attrs.context, 'message'); assert.deepEqual(us.content[0].content.map((n: any) => n.tag), ['devices', 'lid'])
+ok('6. query device ala Baileys + filter key-index')
 console.log('ALL OK')
