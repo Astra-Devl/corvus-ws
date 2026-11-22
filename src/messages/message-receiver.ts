@@ -20,6 +20,16 @@ export interface MessageReceiverOptions {
   codec: MessageCodec
   /** JID akun sendiri (device-aware); `undefined` bila belum login. */
   getOwnJid: () => string | undefined
+  /** LID akun sendiri (`undefined` bila belum diketahui). */
+  getOwnLid?: () => string | undefined
+  /** Simpan pasangan PN <-> LID yang dibawa stanza. */
+  storeLidMappings?: (pairs: Array<{ lid: string; pn: string }>) => Promise<void>
+  /** PN -> LID bila sudah dipetakan (alamat sesi Signal). */
+  resolveSignalJid?: (jid: string) => Promise<string>
+  /** Notifikasi `privacy_token` dari server. */
+  onPrivacyToken?: (node: BinaryNode) => Promise<void> | void
+  /** Ack error untuk pesan yang kita kirim (mis. 463 → token privasi kurang). */
+  onAckError?: (code: string, node: BinaryNode) => void
   /** Kirim receipt pengiriman untuk pesan masuk (default true). */
   sendReceipts?: boolean
   /** Kirim nack (error) bila dekripsi gagal (default true). */
@@ -102,7 +112,13 @@ export class MessageReceiver implements SocketModule {
     const ctx = this.#ctx
     const ownJid = this.#opts.getOwnJid()
 
-    const parsed = parseMessageNode(node, ownJid)
+    const parsed = parseMessageNode(node, ownJid, this.#opts.getOwnLid?.())
+    if (this.#opts.storeLidMappings) {
+      const pairs: Array<{ lid: string; pn: string }> = []
+      if (parsed.senderAlt) pairs.push({ lid: parsed.author, pn: parsed.senderAlt })
+      if (parsed.recipientAlt && parsed.recipient) pairs.push({ lid: parsed.recipient, pn: parsed.recipientAlt })
+      if (pairs.length > 0) await this.#opts.storeLidMappings(pairs).catch(() => undefined)
+    }
     const dedupeKey = `${parsed.from}|${parsed.participant ?? ''}|${parsed.id}`
     if (this.#seen.has(dedupeKey)) {
       await engine.sendNode(buildAck(node))
@@ -111,7 +127,11 @@ export class MessageReceiver implements SocketModule {
 
     let message
     try {
-      message = await decryptMessageNode(parsed, { crypto, codec })
+      message = await decryptMessageNode(parsed, {
+        crypto,
+        codec,
+        ...(this.#opts.resolveSignalJid && { resolveSignalJid: this.#opts.resolveSignalJid }),
+      })
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))
       this.#logger.warn({ err, id: parsed.id, from: parsed.from }, 'failed to decrypt message')
@@ -147,7 +167,10 @@ export class MessageReceiver implements SocketModule {
   #onMessageAck(node: BinaryNode): void {
     const { id, from } = node.attrs
     if (!id || !from || !this.#ctx) return
-    if (node.attrs.error) this.#logger.warn({ id, to: from, error: node.attrs.error }, 'pesan ditolak server')
+    if (node.attrs.error) {
+      this.#logger.warn({ id, to: from, error: node.attrs.error, ack: node.attrs }, 'pesan ditolak server')
+      this.#opts.onAckError?.(node.attrs.error, node)
+    }
     this.#ctx.ev.emit('messages.update', [
       {
         key: { remoteJid: from, fromMe: true, id, ...(node.attrs.participant && { participant: node.attrs.participant }) },
@@ -159,6 +182,7 @@ export class MessageReceiver implements SocketModule {
   async #onNotification(node: BinaryNode): Promise<void> {
     // notifikasi grup (w:gp2) di-ack oleh GroupEventsModule
     if (node.attrs.type === 'w:gp2') return
+    if (node.attrs.type === 'privacy_token') await this.#opts.onPrivacyToken?.(node)
     if (node.attrs.type === 'devices' && node.attrs.from) {
       const device = getChild(node, 'add') ?? getChild(node, 'remove') ?? getChild(node, 'update')
       this.#opts.onDevicesChanged?.(jidNormalizedUser(device?.attrs.jid ?? node.attrs.from))
