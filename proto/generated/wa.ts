@@ -1,3 +1,6 @@
+// File ini dibuat otomatis oleh scripts/generate-proto.cjs dari proto/schemas/wa.proto.
+// JANGAN DIEDIT — ubah file .proto lalu jalankan `npm run proto:generate`.
+/* eslint-disable */
 import type { FileDescriptor } from '../loader/proto-registry.js'
 
 export const ADVEncryptionType = {
