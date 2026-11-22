@@ -1,3 +1,9 @@
+/**
+ * Payload login/registrasi (ClientPayload) dan penyelesaian pairing (`pair-success`).
+ *
+ * Alurnya mengikuti Utils/validate-connection milik @whiskeysockets/baileys 7.0.0-rc14
+ * (MIT, https://github.com/WhiskeySockets/Baileys), ditulis ulang untuk API corvus-ws.
+ */
 import { createHash, randomBytes } from 'node:crypto'
 import { decode, encode } from '../../proto/index.js'
 import { aesEncryptGCM, hkdf, hmacSha256 } from '../crypto/encryption.js'
