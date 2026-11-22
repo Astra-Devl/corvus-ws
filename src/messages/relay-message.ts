@@ -68,7 +68,7 @@ export interface RelayResult {
 export function getMessageType(content: MessageContent): string {
   const type = getContentType(normalizeMessageContent(content))
   if (type === 'reactionMessage') return 'reaction'
-  if (type === 'pollCreationMessage') return 'poll'
+  if (type === 'pollCreationMessage' || type === 'pollUpdateMessage') return 'poll'
   return type && /^(image|video|audio|document|sticker)Message$/.test(type) ? 'media' : 'text'
 }
 
@@ -84,6 +84,13 @@ export function getMediaType(content: MessageContent): string | undefined {
   if (c.contactsArrayMessage) return 'contact_array'
   if (c.locationMessage) return 'location'
   if (c.liveLocationMessage) return 'livelocation'
+  if (c.listMessage) return 'list'
+  if (c.listResponseMessage) return 'list_response'
+  if (c.buttonsResponseMessage) return 'buttons_response'
+  if (c.interactiveResponseMessage) return 'native_flow_response'
+  if (c.orderMessage) return 'order'
+  if (c.productMessage) return 'product'
+  if (c.groupInviteMessage) return 'url'
   return undefined
 }
 
@@ -95,32 +102,51 @@ export function getRelayAttributes(content: MessageContent): Record<string, stri
   return {}
 }
 
+const NATIVE_FLOW_SPECIALS = [
+  'mpm', 'cta_catalog', 'send_location', 'call_permission_request',
+  'wa_payment_transaction_details', 'automated_greeting_message_view_catalog',
+]
+const LIST_TYPE_PRODUCT_LIST = 2
+
 /**
- * Node `<biz>` tambahan untuk pesan list/interaktif.
- * CATATAN: bentuk node ini belum diverifikasi terhadap server; pakai hanya
- * bila perlu, dan override lewat `additionalNodes` jika berbeda.
+ * Node `<biz>` yang membuat pesan button/list/interaktif dirender WhatsApp.
+ * Bentuknya mengikuti implementasi button yang lazim di fork Baileys (paket resmi
+ * @whiskeysockets/baileys tidak menyertakannya) dan belum diverifikasi ke server.
  */
 export function getBizNodes(content: MessageContent): BinaryNode[] {
   const c = normalizeMessageContent(content)
-  if (c?.listMessage) {
-    return [{ tag: 'biz', attrs: {}, content: [{ tag: 'list', attrs: { v: '2', type: 'single_select' } }] }]
+  if (!c) return []
+  const interactive = c.interactiveMessage
+  const nativeFlow = interactive?.nativeFlowMessage
+  const firstButton = nativeFlow?.buttons?.[0]?.name
+  const nativeFlowNode = (name: string, v: string): BinaryNode => ({
+    tag: 'interactive',
+    attrs: { type: 'native_flow', v: '1' },
+    content: [{ tag: 'native_flow', attrs: { v, name } }],
+  })
+
+  if (nativeFlow && (firstButton === 'review_and_pay' || firstButton === 'payment_info')) {
+    return [{ tag: 'biz', attrs: { native_flow_name: firstButton === 'review_and_pay' ? 'order_details' : firstButton } }]
   }
-  if (c?.interactiveMessage?.nativeFlowMessage) {
-    return [
-      {
-        tag: 'biz',
-        attrs: {},
-        content: [
-          {
-            tag: 'interactive',
-            attrs: { type: 'native_flow', v: '1' },
-            content: [{ tag: 'native_flow', attrs: { v: '9', name: 'mixed' } }],
-          },
-        ],
-      },
-    ]
+  if (nativeFlow && firstButton && NATIVE_FLOW_SPECIALS.includes(firstButton)) {
+    return [{ tag: 'biz', attrs: {}, content: [nativeFlowNode(firstButton, '2')] }]
+  }
+  if (interactive || c.buttonsMessage) {
+    return [{ tag: 'biz', attrs: {}, content: [nativeFlowNode('mixed', '9')] }]
+  }
+  if (c.listMessage) {
+    const type = c.listMessage.listType === LIST_TYPE_PRODUCT_LIST ? 'product_list' : 'single_select'
+    return [{ tag: 'biz', attrs: {}, content: [{ tag: 'list', attrs: { v: '2', type } }] }]
   }
   return []
+}
+
+/** `<biz>` + (khusus chat 1:1) `<bot biz_bot="1"/>`; kosong bila pesan bukan button/list/interaktif. */
+export function getButtonNodes(content: MessageContent, jid: string): BinaryNode[] {
+  const biz = getBizNodes(content)
+  if (biz.length === 0) return []
+  const direct = !isGroupJid(jid) && !jid.endsWith('@newsletter') && jid !== 'status@broadcast'
+  return direct ? [...biz, { tag: 'bot', attrs: { biz_bot: '1' } }] : biz
 }
 
 // ---- pre-key bundle ------------------------------------------------------------------
