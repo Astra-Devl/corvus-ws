@@ -35,3 +35,5 @@ export {
   buildClientPayload, buildLoginPayload, buildRegistrationPayload, buildCompanionFinish, configureSuccessfulPairing,
   companionPlatformId, encodeDeviceIdentityFromCreds, FALLBACK_WA_VERSION, type PayloadConfig, type PairSuccessResult, type CompanionFinishResult,
 } from './auth/pairing-handshake.js'
+export { LidMappingStore, type LidMappingOptions, type LidPnPair } from './signal/lid-mapping.js'
+export { TcTokenStore, isTcTokenExpired, shouldSendNewTcToken, type TcTokenEntry, type TcTokenStoreOptions } from './signal/tc-token.js'
