@@ -27,6 +27,8 @@ export interface SendOptions extends Omit<GenerateOptions, 'quoted' | 'userJid'>
    * lewati otomatis bila `additionalNodes` sudah memuat `<biz>`). Isi `false` untuk menonaktifkan.
    */
   bizNodes?: boolean
+  /** Tambahkan `<bot biz_bot="1"/>` pada chat 1:1 bersama `<biz>` (default `false`). */
+  bizBot?: boolean
   participants?: string[]
 }
 
@@ -63,7 +65,7 @@ export class MessageSender {
     })
     const content = message.message!
     const custom = options.additionalNodes ?? []
-    const autoNodes = options.bizNodes === false || custom.some((n) => n.tag === 'biz') ? [] : getButtonNodes(content, jid)
+    const autoNodes = options.bizNodes === false || custom.some((n) => n.tag === 'biz') ? [] : getButtonNodes(content, jid, { bizBot: options.bizBot === true })
     const additionalNodes = [...autoNodes, ...custom]
 
     const relay = await relayMessage(this.#deps, jid, content, {
