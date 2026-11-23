@@ -7,7 +7,7 @@ export class ButtonBuilder {
   #header: HeaderInput | undefined
   #body = ''
   #footer: string | undefined
-  #wrap = true
+  #wrap = false
   readonly #buttons: InteractiveButton[] = []
 
   header(header: HeaderInput | string): this {
