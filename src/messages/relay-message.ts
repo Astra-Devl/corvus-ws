@@ -106,7 +106,6 @@ const NATIVE_FLOW_SPECIALS = [
   'mpm', 'cta_catalog', 'send_location', 'call_permission_request',
   'wa_payment_transaction_details', 'automated_greeting_message_view_catalog',
 ]
-const LIST_TYPE_PRODUCT_LIST = 2
 
 /**
  * Node `<biz>` yang membuat pesan button/list/interaktif dirender WhatsApp.
@@ -135,18 +134,21 @@ export function getBizNodes(content: MessageContent): BinaryNode[] {
     return [{ tag: 'biz', attrs: {}, content: [nativeFlowNode('mixed', '9')] }]
   }
   if (c.listMessage) {
-    const type = c.listMessage.listType === LIST_TYPE_PRODUCT_LIST ? 'product_list' : 'single_select'
-    return [{ tag: 'biz', attrs: {}, content: [{ tag: 'list', attrs: { v: '2', type } }] }]
+    // WhatsApp Web mengirim `<list type="product_list" v="2"/>` untuk semua legacy list message
+    return [{ tag: 'biz', attrs: {}, content: [{ tag: 'list', attrs: { v: '2', type: 'product_list' } }] }]
   }
   return []
 }
 
-/** `<biz>` + (khusus chat 1:1) `<bot biz_bot="1"/>`; kosong bila pesan bukan button/list/interaktif. */
-export function getButtonNodes(content: MessageContent, jid: string): BinaryNode[] {
+/**
+ * `<biz>` untuk pesan button/list/interaktif. `bizBot: true` menambahkan `<bot biz_bot="1"/>` pada chat
+ * 1:1 (dipakai sebagian helper Baileys; WhatsApp Web asli tidak mengirimnya, jadi default mati).
+ */
+export function getButtonNodes(content: MessageContent, jid: string, options: { bizBot?: boolean } = {}): BinaryNode[] {
   const biz = getBizNodes(content)
   if (biz.length === 0) return []
   const direct = !isGroupJid(jid) && !jid.endsWith('@newsletter') && jid !== 'status@broadcast'
-  return direct ? [...biz, { tag: 'bot', attrs: { biz_bot: '1' } }] : biz
+  return options.bizBot && direct ? [...biz, { tag: 'bot', attrs: { biz_bot: '1' } }] : biz
 }
 
 // ---- pre-key bundle ------------------------------------------------------------------
@@ -201,6 +203,8 @@ export async function fetchPreKeyBundles(
 const sameDevice = (a: string, b: string): boolean => jidToSignalAddress(a) === jidToSignalAddress(b)
 
 const userOf = (jid: string): string | undefined => jidDecode(jid)?.user
+
+const isListGroup = (jid: string, isList: boolean): boolean => isList && isGroupJid(jid)
 
 /** Apakah `jid` milik akun sendiri (PN maupun LID)? */
 const isOwnUser = (deps: RelayDeps, jid: string): boolean => {
@@ -269,15 +273,22 @@ export async function relayMessage(
 ): Promise<RelayResult> {
   const logger = deps.logger ?? noopLogger
   const id = options.messageId ?? generateMessageId()
-  const mediaType = getMediaType(content)
+  const extra = options.additionalNodes ?? []
+  // Dengan pendamping <biz>, WhatsApp Web (dan zapo-js / wa-js) mengirim stanza `type="text"` tanpa
+  // `mediatype` pada <enc>; kombinasi type=media + mediatype=list/button ditolak server (479).
+  // Pengecualian: list ke grup tetap `type="media"` dengan `mediatype="list"` pada <enc> skmsg.
+  const hasBiz = extra.some((n) => n.tag === 'biz')
+  const isListMessage = normalizeMessageContent(content)?.listMessage !== undefined
+  const groupList = hasBiz && isListGroup(jid, isListMessage)
+  const flatten = hasBiz && !groupList
+  const mediaType = flatten ? undefined : getMediaType(content)
   const attrs: Record<string, string> = {
     id,
     to: jid,
-    type: getMessageType(content),
+    type: flatten ? 'text' : groupList ? 'media' : getMessageType(content),
     ...getRelayAttributes(content),
     ...options.attrs,
   }
-  const extra = options.additionalNodes ?? []
   const ownUser = jidNormalizedUser(deps.ownJid)
   const recipients: string[] = []
   let skipped: string[] = []
