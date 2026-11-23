@@ -39,5 +39,5 @@ export function buildInteractiveMessage(input: InteractiveInput): MessageContent
       nativeFlowMessage: buildNativeFlow(input.buttons),
     },
   }
-  return input.wrap === false ? content : wrapInteractive(content)
+  return input.wrap === true ? wrapInteractive(content) : content
 }
