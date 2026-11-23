@@ -2,7 +2,7 @@ import type { ButtonsInput } from './button-types.js'
 import { assertText, validateReplyButtons } from './button-utils.js'
 import type { MessageContent } from './message-utils.js'
 
-const HEADER_TYPE = { EMPTY: 1, TEXT: 2 } as const
+const HEADER_TYPE = { EMPTY: 1, TEXT: 2, LOCATION: 6 } as const
 const BUTTON_TYPE_RESPONSE = 1
 
 /** `buttonsMessage` klasik (maks. 3 tombol balas cepat). */
@@ -17,7 +17,8 @@ export function buildButtonsMessage(input: ButtonsInput): MessageContent {
       contentText: input.text,
       ...(input.footer !== undefined && { footerText: input.footer }),
       ...(input.header !== undefined && { text: input.header }),
-      headerType: input.header !== undefined ? HEADER_TYPE.TEXT : HEADER_TYPE.EMPTY,
+      ...(input.locationMessage && { locationMessage: input.locationMessage }),
+      headerType: input.locationMessage ? HEADER_TYPE.LOCATION : input.header !== undefined ? HEADER_TYPE.TEXT : HEADER_TYPE.EMPTY,
       buttons: input.buttons.map((b) => ({
         buttonId: b.id,
         buttonText: { displayText: b.text },
