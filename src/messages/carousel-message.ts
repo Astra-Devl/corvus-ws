@@ -28,5 +28,5 @@ export function buildCarouselMessage(input: CarouselInput): MessageContent {
       carouselMessage: { cards, messageVersion: 1 },
     },
   }
-  return input.wrap === false ? content : wrapInteractive(content)
+  return input.wrap === true ? wrapInteractive(content) : content
 }
