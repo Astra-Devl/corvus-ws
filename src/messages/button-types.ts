@@ -48,6 +48,8 @@ export interface ButtonsInput {
   footer?: string
   /** Teks header (opsional). */
   header?: string
+  /** Header lokasi + thumbnail (`headerType` 6), seperti yang dipakai fork Baileys untuk menu klasik. */
+  locationMessage?: { degreesLatitude?: number; degreesLongitude?: number; name?: string; address?: string; jpegThumbnail?: Uint8Array }
   buttons: ReplyButton[]
 }
 
@@ -72,7 +74,7 @@ export interface InteractiveInput {
   body: string
   footer?: string
   buttons: InteractiveButton[]
-  /** Bungkus dengan `viewOnceMessage` + messageContextInfo (default true). */
+  /** Bungkus dengan `viewOnceMessage` + messageContextInfo (default `false`: dikirim langsung seperti WhatsApp Web). */
   wrap?: boolean
 }
 
@@ -88,6 +90,7 @@ export interface CarouselInput {
   body?: string
   footer?: string
   cards: CarouselCard[]
+  /** Bungkus dengan `viewOnceMessage` (default `false`). */
   wrap?: boolean
 }
 
