@@ -98,11 +98,75 @@ export const ListResponseMessage_ListType = {
 } as const
 export type ListResponseMessage_ListType = (typeof ListResponseMessage_ListType)[keyof typeof ListResponseMessage_ListType]
 
+export const InteractiveMessage_CarouselMessage_CarouselCardType = {
+  UNKNOWN: 0,
+  HSCROLL_CARDS: 1,
+  ALBUM_IMAGE: 2,
+} as const
+export type InteractiveMessage_CarouselMessage_CarouselCardType = (typeof InteractiveMessage_CarouselMessage_CarouselCardType)[keyof typeof InteractiveMessage_CarouselMessage_CarouselCardType]
+
 export const InteractiveResponseMessage_Body_Format = {
   DEFAULT: 0,
   EXTENSIONS_1: 1,
 } as const
 export type InteractiveResponseMessage_Body_Format = (typeof InteractiveResponseMessage_Body_Format)[keyof typeof InteractiveResponseMessage_Body_Format]
+
+export const PaymentInviteMessage_ServiceType = {
+  UNKNOWN: 0,
+  FBPAY: 1,
+  NOVI: 2,
+  UPI: 3,
+} as const
+export type PaymentInviteMessage_ServiceType = (typeof PaymentInviteMessage_ServiceType)[keyof typeof PaymentInviteMessage_ServiceType]
+
+export const PinInChatMessage_Type = {
+  UNKNOWN_TYPE: 0,
+  PIN_FOR_ALL: 1,
+  UNPIN_FOR_ALL: 2,
+} as const
+export type PinInChatMessage_Type = (typeof PinInChatMessage_Type)[keyof typeof PinInChatMessage_Type]
+
+export const ScheduledCallCreationMessage_CallType = {
+  UNKNOWN: 0,
+  VOICE: 1,
+  VIDEO: 2,
+} as const
+export type ScheduledCallCreationMessage_CallType = (typeof ScheduledCallCreationMessage_CallType)[keyof typeof ScheduledCallCreationMessage_CallType]
+
+export const ScheduledCallEditMessage_EditType = {
+  UNKNOWN: 0,
+  CANCEL: 1,
+} as const
+export type ScheduledCallEditMessage_EditType = (typeof ScheduledCallEditMessage_EditType)[keyof typeof ScheduledCallEditMessage_EditType]
+
+export const OrderMessage_OrderStatus = {
+  ORDER_STATUS_UNSPECIFIED: 0,
+  INQUIRY: 1,
+  ACCEPTED: 2,
+  DECLINED: 3,
+} as const
+export type OrderMessage_OrderStatus = (typeof OrderMessage_OrderStatus)[keyof typeof OrderMessage_OrderStatus]
+
+export const OrderMessage_OrderSurface = {
+  ORDER_SURFACE_UNSPECIFIED: 0,
+  CATALOG: 1,
+} as const
+export type OrderMessage_OrderSurface = (typeof OrderMessage_OrderSurface)[keyof typeof OrderMessage_OrderSurface]
+
+export const InvoiceMessage_AttachmentType = {
+  IMAGE: 0,
+  PDF: 1,
+} as const
+export type InvoiceMessage_AttachmentType = (typeof InvoiceMessage_AttachmentType)[keyof typeof InvoiceMessage_AttachmentType]
+
+export const MessageAssociation_AssociationType = {
+  UNKNOWN: 0,
+  MEDIA_ALBUM: 1,
+  BOT_PLUGIN: 2,
+  EVENT_COVER_IMAGE: 3,
+  STATUS_POLL: 4,
+} as const
+export type MessageAssociation_AssociationType = (typeof MessageAssociation_AssociationType)[keyof typeof MessageAssociation_AssociationType]
 
 export interface Message {
   conversation?: string | null
@@ -140,6 +204,26 @@ export interface Message {
   viewOnceMessageV2?: FutureProofMessage | null
   editedMessage?: FutureProofMessage | null
   viewOnceMessageV2Extension?: FutureProofMessage | null
+  sendPaymentMessage?: SendPaymentMessage | null
+  requestPaymentMessage?: RequestPaymentMessage | null
+  declinePaymentRequestMessage?: DeclinePaymentRequestMessage | null
+  cancelPaymentRequestMessage?: CancelPaymentRequestMessage | null
+  productMessage?: ProductMessage | null
+  orderMessage?: OrderMessage | null
+  invoiceMessage?: InvoiceMessage | null
+  paymentInviteMessage?: PaymentInviteMessage | null
+  requestPhoneNumberMessage?: RequestPhoneNumberMessage | null
+  pollCreationMessageV2?: PollCreationMessage | null
+  scheduledCallCreationMessage?: ScheduledCallCreationMessage | null
+  pinInChatMessage?: PinInChatMessage | null
+  pollCreationMessageV3?: PollCreationMessage | null
+  scheduledCallEditMessage?: ScheduledCallEditMessage | null
+  ptvMessage?: VideoMessage | null
+  eventMessage?: EventMessage | null
+  statusMentionMessage?: FutureProofMessage | null
+  albumMessage?: AlbumMessage | null
+  groupStatusMentionMessage?: FutureProofMessage | null
+  groupStatusMessageV2?: FutureProofMessage | null
 }
 
 export interface Message_SenderKeyDistributionMessage {
@@ -176,6 +260,13 @@ export interface ContextInfo {
   groupSubject?: string | null
   parentGroupJid?: string | null
   forwardedNewsletterMessageInfo?: ForwardedNewsletterMessageInfo | null
+  entryPointConversionSource?: string | null
+  entryPointConversionApp?: string | null
+  entryPointConversionDelaySeconds?: number | null
+  groupMentions?: Array<GroupMention> | null
+  alwaysShowAdAttribution?: boolean | null
+  isGroupStatus?: boolean | null
+  nonJidMentions?: number | null
 }
 
 export interface ContextInfo_ExternalAdReplyInfo {
@@ -587,6 +678,7 @@ export interface InteractiveMessage_NativeFlowMessage_NativeFlowButton {
 export interface InteractiveMessage_CarouselMessage {
   cards?: Array<InteractiveMessage> | null
   messageVersion?: number | null
+  carouselCardType?: number | null
 }
 
 export interface InteractiveResponseMessage {
@@ -604,6 +696,154 @@ export interface InteractiveResponseMessage_NativeFlowResponseMessage {
   name?: string | null
   paramsJson?: string | null
   version?: number | null
+}
+
+export interface GroupMention {
+  groupJid?: string | null
+  groupSubject?: string | null
+}
+
+export interface Money {
+  value?: number | bigint | null
+  offset?: number | null
+  currencyCode?: string | null
+}
+
+export interface EventMessage {
+  contextInfo?: ContextInfo | null
+  isCanceled?: boolean | null
+  name?: string | null
+  description?: string | null
+  location?: LocationMessage | null
+  joinLink?: string | null
+  startTime?: number | bigint | null
+  endTime?: number | bigint | null
+  extraGuestsAllowed?: boolean | null
+  isScheduleCall?: boolean | null
+  hasReminder?: boolean | null
+  reminderOffsetSec?: number | bigint | null
+}
+
+export interface RequestPaymentMessage {
+  noteMessage?: Message | null
+  currencyCodeIso4217?: string | null
+  amount1000?: number | bigint | null
+  requestFrom?: string | null
+  expiryTimestamp?: number | bigint | null
+  amount?: Money | null
+}
+
+export interface SendPaymentMessage {
+  noteMessage?: Message | null
+  requestMessageKey?: MessageKey | null
+  transactionData?: string | null
+}
+
+export interface CancelPaymentRequestMessage {
+  key?: MessageKey | null
+}
+
+export interface DeclinePaymentRequestMessage {
+  key?: MessageKey | null
+}
+
+export interface PaymentInviteMessage {
+  serviceType?: number | null
+  expiryTimestamp?: number | bigint | null
+}
+
+export interface PinInChatMessage {
+  key?: MessageKey | null
+  type?: number | null
+  senderTimestampMs?: number | bigint | null
+}
+
+export interface AlbumMessage {
+  expectedImageCount?: number | null
+  expectedVideoCount?: number | null
+  contextInfo?: ContextInfo | null
+}
+
+export interface ScheduledCallCreationMessage {
+  scheduledTimestampMs?: number | bigint | null
+  callType?: number | null
+  title?: string | null
+}
+
+export interface ScheduledCallEditMessage {
+  key?: MessageKey | null
+  editType?: number | null
+}
+
+export interface RequestPhoneNumberMessage {
+  contextInfo?: ContextInfo | null
+}
+
+export interface OrderMessage {
+  orderId?: string | null
+  thumbnail?: Uint8Array | null
+  itemCount?: number | null
+  status?: number | null
+  surface?: number | null
+  message?: string | null
+  orderTitle?: string | null
+  sellerJid?: string | null
+  token?: string | null
+  totalAmount1000?: number | bigint | null
+  totalCurrencyCode?: string | null
+  messageVersion?: number | null
+  orderRequestMessageId?: MessageKey | null
+  catalogType?: string | null
+  contextInfo?: ContextInfo | null
+}
+
+export interface ProductMessage {
+  product?: ProductMessage_ProductSnapshot | null
+  businessOwnerJid?: string | null
+  catalog?: ProductMessage_CatalogSnapshot | null
+  body?: string | null
+  footer?: string | null
+  contextInfo?: ContextInfo | null
+}
+
+export interface ProductMessage_CatalogSnapshot {
+  catalogImage?: ImageMessage | null
+  title?: string | null
+  description?: string | null
+}
+
+export interface ProductMessage_ProductSnapshot {
+  productImage?: ImageMessage | null
+  productId?: string | null
+  title?: string | null
+  description?: string | null
+  currencyCode?: string | null
+  priceAmount1000?: number | bigint | null
+  retailerId?: string | null
+  url?: string | null
+  productImageCount?: number | null
+  firstImageId?: string | null
+  salePriceAmount1000?: number | bigint | null
+  signedUrl?: string | null
+}
+
+export interface InvoiceMessage {
+  note?: string | null
+  token?: string | null
+  attachmentType?: number | null
+  attachmentMimetype?: string | null
+  attachmentMediaKey?: Uint8Array | null
+  attachmentMediaKeyTimestamp?: number | bigint | null
+  attachmentFileSha256?: Uint8Array | null
+  attachmentFileEncSha256?: Uint8Array | null
+  attachmentDirectPath?: string | null
+  attachmentJpegThumbnail?: Uint8Array | null
+}
+
+export interface MessageAssociation {
+  associationType?: number | null
+  parentMessageKey?: MessageKey | null
+  messageIndex?: number | null
 }
 
 export const waMessageDescriptor: FileDescriptor = {
@@ -899,6 +1139,166 @@ export const waMessageDescriptor: FileDescriptor = {
           "label": "optional",
           "packed": false,
           "typeName": "corvus.FutureProofMessage"
+        },
+        {
+          "name": "sendPaymentMessage",
+          "number": 16,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.SendPaymentMessage"
+        },
+        {
+          "name": "requestPaymentMessage",
+          "number": 22,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.RequestPaymentMessage"
+        },
+        {
+          "name": "declinePaymentRequestMessage",
+          "number": 23,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.DeclinePaymentRequestMessage"
+        },
+        {
+          "name": "cancelPaymentRequestMessage",
+          "number": 24,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.CancelPaymentRequestMessage"
+        },
+        {
+          "name": "productMessage",
+          "number": 30,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ProductMessage"
+        },
+        {
+          "name": "orderMessage",
+          "number": 38,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.OrderMessage"
+        },
+        {
+          "name": "invoiceMessage",
+          "number": 41,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.InvoiceMessage"
+        },
+        {
+          "name": "paymentInviteMessage",
+          "number": 44,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.PaymentInviteMessage"
+        },
+        {
+          "name": "requestPhoneNumberMessage",
+          "number": 54,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.RequestPhoneNumberMessage"
+        },
+        {
+          "name": "pollCreationMessageV2",
+          "number": 60,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.PollCreationMessage"
+        },
+        {
+          "name": "scheduledCallCreationMessage",
+          "number": 61,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ScheduledCallCreationMessage"
+        },
+        {
+          "name": "pinInChatMessage",
+          "number": 63,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.PinInChatMessage"
+        },
+        {
+          "name": "pollCreationMessageV3",
+          "number": 64,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.PollCreationMessage"
+        },
+        {
+          "name": "scheduledCallEditMessage",
+          "number": 65,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ScheduledCallEditMessage"
+        },
+        {
+          "name": "ptvMessage",
+          "number": 66,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.VideoMessage"
+        },
+        {
+          "name": "eventMessage",
+          "number": 75,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.EventMessage"
+        },
+        {
+          "name": "statusMentionMessage",
+          "number": 87,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.FutureProofMessage"
+        },
+        {
+          "name": "albumMessage",
+          "number": 83,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.AlbumMessage"
+        },
+        {
+          "name": "groupStatusMentionMessage",
+          "number": 92,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.FutureProofMessage"
+        },
+        {
+          "name": "groupStatusMessageV2",
+          "number": 103,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.FutureProofMessage"
         }
       ],
       "oneofs": []
@@ -1101,6 +1501,56 @@ export const waMessageDescriptor: FileDescriptor = {
           "label": "optional",
           "packed": false,
           "typeName": "corvus.ForwardedNewsletterMessageInfo"
+        },
+        {
+          "name": "entryPointConversionSource",
+          "number": 29,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "entryPointConversionApp",
+          "number": 30,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "entryPointConversionDelaySeconds",
+          "number": 31,
+          "type": "uint32",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "groupMentions",
+          "number": 40,
+          "type": "message",
+          "label": "repeated",
+          "packed": false,
+          "typeName": "corvus.GroupMention"
+        },
+        {
+          "name": "alwaysShowAdAttribution",
+          "number": 48,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "isGroupStatus",
+          "number": 66,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "nonJidMentions",
+          "number": 70,
+          "type": "uint32",
+          "label": "optional",
+          "packed": false
         }
       ],
       "oneofs": []
@@ -3465,6 +3915,14 @@ export const waMessageDescriptor: FileDescriptor = {
           "type": "int32",
           "label": "optional",
           "packed": false
+        },
+        {
+          "name": "carouselCardType",
+          "number": 3,
+          "type": "enum",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.InteractiveMessage.CarouselMessage.CarouselCardType"
         }
       ],
       "oneofs": []
@@ -3545,6 +4003,804 @@ export const waMessageDescriptor: FileDescriptor = {
         },
         {
           "name": "version",
+          "number": 3,
+          "type": "int32",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.GroupMention",
+      "name": "GroupMention",
+      "fields": [
+        {
+          "name": "groupJid",
+          "number": 1,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "groupSubject",
+          "number": 2,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.Money",
+      "name": "Money",
+      "fields": [
+        {
+          "name": "value",
+          "number": 1,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "offset",
+          "number": 2,
+          "type": "uint32",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "currencyCode",
+          "number": 3,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.EventMessage",
+      "name": "EventMessage",
+      "fields": [
+        {
+          "name": "contextInfo",
+          "number": 1,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ContextInfo"
+        },
+        {
+          "name": "isCanceled",
+          "number": 2,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "name",
+          "number": 3,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "description",
+          "number": 4,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "location",
+          "number": 5,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.LocationMessage"
+        },
+        {
+          "name": "joinLink",
+          "number": 6,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "startTime",
+          "number": 7,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "endTime",
+          "number": 8,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "extraGuestsAllowed",
+          "number": 9,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "isScheduleCall",
+          "number": 10,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "hasReminder",
+          "number": 11,
+          "type": "bool",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "reminderOffsetSec",
+          "number": 12,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.RequestPaymentMessage",
+      "name": "RequestPaymentMessage",
+      "fields": [
+        {
+          "name": "noteMessage",
+          "number": 4,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.Message"
+        },
+        {
+          "name": "currencyCodeIso4217",
+          "number": 1,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "amount1000",
+          "number": 2,
+          "type": "uint64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "requestFrom",
+          "number": 3,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "expiryTimestamp",
+          "number": 5,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "amount",
+          "number": 6,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.Money"
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.SendPaymentMessage",
+      "name": "SendPaymentMessage",
+      "fields": [
+        {
+          "name": "noteMessage",
+          "number": 2,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.Message"
+        },
+        {
+          "name": "requestMessageKey",
+          "number": 3,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.MessageKey"
+        },
+        {
+          "name": "transactionData",
+          "number": 5,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.CancelPaymentRequestMessage",
+      "name": "CancelPaymentRequestMessage",
+      "fields": [
+        {
+          "name": "key",
+          "number": 1,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.MessageKey"
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.DeclinePaymentRequestMessage",
+      "name": "DeclinePaymentRequestMessage",
+      "fields": [
+        {
+          "name": "key",
+          "number": 1,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.MessageKey"
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.PaymentInviteMessage",
+      "name": "PaymentInviteMessage",
+      "fields": [
+        {
+          "name": "serviceType",
+          "number": 1,
+          "type": "enum",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.PaymentInviteMessage.ServiceType"
+        },
+        {
+          "name": "expiryTimestamp",
+          "number": 2,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.PinInChatMessage",
+      "name": "PinInChatMessage",
+      "fields": [
+        {
+          "name": "key",
+          "number": 1,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.MessageKey"
+        },
+        {
+          "name": "type",
+          "number": 2,
+          "type": "enum",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.PinInChatMessage.Type"
+        },
+        {
+          "name": "senderTimestampMs",
+          "number": 3,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.AlbumMessage",
+      "name": "AlbumMessage",
+      "fields": [
+        {
+          "name": "expectedImageCount",
+          "number": 2,
+          "type": "uint32",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "expectedVideoCount",
+          "number": 3,
+          "type": "uint32",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "contextInfo",
+          "number": 17,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ContextInfo"
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.ScheduledCallCreationMessage",
+      "name": "ScheduledCallCreationMessage",
+      "fields": [
+        {
+          "name": "scheduledTimestampMs",
+          "number": 1,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "callType",
+          "number": 2,
+          "type": "enum",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ScheduledCallCreationMessage.CallType"
+        },
+        {
+          "name": "title",
+          "number": 3,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.ScheduledCallEditMessage",
+      "name": "ScheduledCallEditMessage",
+      "fields": [
+        {
+          "name": "key",
+          "number": 1,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.MessageKey"
+        },
+        {
+          "name": "editType",
+          "number": 2,
+          "type": "enum",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ScheduledCallEditMessage.EditType"
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.RequestPhoneNumberMessage",
+      "name": "RequestPhoneNumberMessage",
+      "fields": [
+        {
+          "name": "contextInfo",
+          "number": 1,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ContextInfo"
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.OrderMessage",
+      "name": "OrderMessage",
+      "fields": [
+        {
+          "name": "orderId",
+          "number": 1,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "thumbnail",
+          "number": 2,
+          "type": "bytes",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "itemCount",
+          "number": 3,
+          "type": "int32",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "status",
+          "number": 4,
+          "type": "enum",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.OrderMessage.OrderStatus"
+        },
+        {
+          "name": "surface",
+          "number": 5,
+          "type": "enum",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.OrderMessage.OrderSurface"
+        },
+        {
+          "name": "message",
+          "number": 6,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "orderTitle",
+          "number": 7,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "sellerJid",
+          "number": 8,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "token",
+          "number": 9,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "totalAmount1000",
+          "number": 10,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "totalCurrencyCode",
+          "number": 11,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "messageVersion",
+          "number": 12,
+          "type": "int32",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "orderRequestMessageId",
+          "number": 13,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.MessageKey"
+        },
+        {
+          "name": "catalogType",
+          "number": 15,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "contextInfo",
+          "number": 17,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ContextInfo"
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.ProductMessage",
+      "name": "ProductMessage",
+      "fields": [
+        {
+          "name": "product",
+          "number": 1,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ProductMessage.ProductSnapshot"
+        },
+        {
+          "name": "businessOwnerJid",
+          "number": 2,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "catalog",
+          "number": 4,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ProductMessage.CatalogSnapshot"
+        },
+        {
+          "name": "body",
+          "number": 5,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "footer",
+          "number": 6,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "contextInfo",
+          "number": 17,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ContextInfo"
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.ProductMessage.CatalogSnapshot",
+      "name": "CatalogSnapshot",
+      "fields": [
+        {
+          "name": "catalogImage",
+          "number": 1,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ImageMessage"
+        },
+        {
+          "name": "title",
+          "number": 2,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "description",
+          "number": 3,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.ProductMessage.ProductSnapshot",
+      "name": "ProductSnapshot",
+      "fields": [
+        {
+          "name": "productImage",
+          "number": 1,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.ImageMessage"
+        },
+        {
+          "name": "productId",
+          "number": 2,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "title",
+          "number": 3,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "description",
+          "number": 4,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "currencyCode",
+          "number": 5,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "priceAmount1000",
+          "number": 6,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "retailerId",
+          "number": 7,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "url",
+          "number": 8,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "productImageCount",
+          "number": 9,
+          "type": "uint32",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "firstImageId",
+          "number": 11,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "salePriceAmount1000",
+          "number": 12,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "signedUrl",
+          "number": 13,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.InvoiceMessage",
+      "name": "InvoiceMessage",
+      "fields": [
+        {
+          "name": "note",
+          "number": 1,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "token",
+          "number": 2,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "attachmentType",
+          "number": 3,
+          "type": "enum",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.InvoiceMessage.AttachmentType"
+        },
+        {
+          "name": "attachmentMimetype",
+          "number": 4,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "attachmentMediaKey",
+          "number": 5,
+          "type": "bytes",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "attachmentMediaKeyTimestamp",
+          "number": 6,
+          "type": "int64",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "attachmentFileSha256",
+          "number": 7,
+          "type": "bytes",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "attachmentFileEncSha256",
+          "number": 8,
+          "type": "bytes",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "attachmentDirectPath",
+          "number": 9,
+          "type": "string",
+          "label": "optional",
+          "packed": false
+        },
+        {
+          "name": "attachmentJpegThumbnail",
+          "number": 10,
+          "type": "bytes",
+          "label": "optional",
+          "packed": false
+        }
+      ],
+      "oneofs": []
+    },
+    {
+      "fullName": "corvus.MessageAssociation",
+      "name": "MessageAssociation",
+      "fields": [
+        {
+          "name": "associationType",
+          "number": 1,
+          "type": "enum",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.MessageAssociation.AssociationType"
+        },
+        {
+          "name": "parentMessageKey",
+          "number": 2,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.MessageKey"
+        },
+        {
+          "name": "messageIndex",
           "number": 3,
           "type": "int32",
           "label": "optional",
@@ -3669,11 +4925,93 @@ export const waMessageDescriptor: FileDescriptor = {
       }
     },
     {
+      "fullName": "corvus.InteractiveMessage.CarouselMessage.CarouselCardType",
+      "name": "CarouselCardType",
+      "values": {
+        "UNKNOWN": 0,
+        "HSCROLL_CARDS": 1,
+        "ALBUM_IMAGE": 2
+      }
+    },
+    {
       "fullName": "corvus.InteractiveResponseMessage.Body.Format",
       "name": "Format",
       "values": {
         "DEFAULT": 0,
         "EXTENSIONS_1": 1
+      }
+    },
+    {
+      "fullName": "corvus.PaymentInviteMessage.ServiceType",
+      "name": "ServiceType",
+      "values": {
+        "UNKNOWN": 0,
+        "FBPAY": 1,
+        "NOVI": 2,
+        "UPI": 3
+      }
+    },
+    {
+      "fullName": "corvus.PinInChatMessage.Type",
+      "name": "Type",
+      "values": {
+        "UNKNOWN_TYPE": 0,
+        "PIN_FOR_ALL": 1,
+        "UNPIN_FOR_ALL": 2
+      }
+    },
+    {
+      "fullName": "corvus.ScheduledCallCreationMessage.CallType",
+      "name": "CallType",
+      "values": {
+        "UNKNOWN": 0,
+        "VOICE": 1,
+        "VIDEO": 2
+      }
+    },
+    {
+      "fullName": "corvus.ScheduledCallEditMessage.EditType",
+      "name": "EditType",
+      "values": {
+        "UNKNOWN": 0,
+        "CANCEL": 1
+      }
+    },
+    {
+      "fullName": "corvus.OrderMessage.OrderStatus",
+      "name": "OrderStatus",
+      "values": {
+        "ORDER_STATUS_UNSPECIFIED": 0,
+        "INQUIRY": 1,
+        "ACCEPTED": 2,
+        "DECLINED": 3
+      }
+    },
+    {
+      "fullName": "corvus.OrderMessage.OrderSurface",
+      "name": "OrderSurface",
+      "values": {
+        "ORDER_SURFACE_UNSPECIFIED": 0,
+        "CATALOG": 1
+      }
+    },
+    {
+      "fullName": "corvus.InvoiceMessage.AttachmentType",
+      "name": "AttachmentType",
+      "values": {
+        "IMAGE": 0,
+        "PDF": 1
+      }
+    },
+    {
+      "fullName": "corvus.MessageAssociation.AssociationType",
+      "name": "AssociationType",
+      "values": {
+        "UNKNOWN": 0,
+        "MEDIA_ALBUM": 1,
+        "BOT_PLUGIN": 2,
+        "EVENT_COVER_IMAGE": 3,
+        "STATUS_POLL": 4
       }
     }
   ]
