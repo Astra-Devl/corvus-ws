@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { ButtonBuilder } from '../../src/index.ts'
+import { ButtonBuilder, makeSocket, createMemoryAuthState, createLogger } from '../../src/index.ts'
+import { createProtoMessageCodec } from '../../src/protocol/proto-message.ts'
 import { getBizNodes, getButtonNodes, getMediaType } from '../../src/messages/relay-message.ts'
 import { MessageSender } from '../../src/messages/send-message.ts'
 import { generateMessageContent } from '../../src/messages/generate-message.ts'
@@ -93,4 +94,49 @@ ok('4. biz otomatis, bisa dimatikan, type/mediatype benar')
   assert.equal((generateMessageContent({ buttons: { text: 'Pilih', buttons: [{ id: '1', text: 'Satu' }] } }) as any).buttonsMessage.headerType, 1)
   ok('6. interactive langsung (wrap opsional) + header lokasi')
 }
+// 7. carousel: media dari link / path / Buffer / stream, tiap kartu di-upload otomatis
+{
+  const sock = makeSocket({ auth: createMemoryAuthState(), logger: createLogger({ level: 'silent' }), reconnect: false })
+  const prepared: Array<[string, unknown, unknown]> = []
+  let given: any
+  ;(sock.media as any).prepare = async (kind: string, source: unknown, opts: unknown) => {
+    prepared.push([kind, source, opts])
+    const key = kind === 'image' ? 'imageMessage' : kind === 'document' ? 'documentMessage' : 'videoMessage'
+    return { [key]: { url: 'https://mmg.whatsapp.net/x', mimetype: 'x/y', fileLength: 1, mediaKey: new Uint8Array(32), fileSha256: new Uint8Array(32), fileEncSha256: new Uint8Array(32), directPath: '/v/x' } }
+  }
+  ;(sock.messages as any).send = async (_jid: string, input: unknown) => { given = input; return { message: { key: { id: 'K' } } } }
+  await sock.sendMessage(DM, { carousel: {
+    body: 'Pilih produk', footer: 'Toko',
+    cards: [
+      { header: { title: 'A', image: 'https://example.com/a.jpg' }, body: 'Rp 50.000', buttons: [{ type: 'url', text: 'Beli', url: 'https://example.com/a' }] },
+      { header: { title: 'B', video: './b.mp4', gif: true }, body: 'Rp 75.000', buttons: [{ type: 'reply', text: 'Pesan', id: 'b' }] },
+      { header: { title: 'C', image: Buffer.from('x') }, body: 'Rp 90.000', buttons: [{ type: 'copy', text: 'Salin', code: 'KODE' }] },
+      { header: { title: 'D', document: { path: './d.pdf' }, fileName: 'D.pdf', mimetype: 'application/pdf' }, body: 'Katalog', buttons: [{ type: 'reply', text: 'Ok', id: 'd' }] },
+      { body: 'Tanpa media', buttons: [{ type: 'reply', text: 'Ok', id: 'e' }] },
+    ],
+  } })
+  assert.deepEqual(prepared.map((p) => p[0]), ['image', 'gif', 'image', 'document'])
+  assert.deepEqual(prepared[0]![1], { url: 'https://example.com/a.jpg' }); assert.deepEqual(prepared[1]![1], { path: './b.mp4' })
+  assert.ok(Buffer.isBuffer((prepared[2]![1] as any).buffer)); assert.deepEqual(prepared[3]![2], { fileName: 'D.pdf', mimetype: 'application/pdf' })
+  const content = generateMessageContent(given) as any
+  const cards = content.interactiveMessage.carouselMessage.cards
+  assert.equal(cards.length, 5); assert.equal(cards[0].header.hasMediaAttachment, true); assert.ok(cards[0].header.imageMessage); assert.ok(cards[1].header.videoMessage)
+  assert.ok(cards[3].header.documentMessage); assert.equal(cards[4].header, undefined)
+  assert.equal(content.interactiveMessage.carouselMessage.carouselCardType, 1)
+  assert.ok(!('messageParamsJson' in cards[0].nativeFlowMessage)) // tidak mengirim string kosong
+  // seluruh pesan bisa di-encode & decode oleh codec protobuf (tidak ada "unknown field")
+  const codec = createProtoMessageCodec()
+  const back = codec.decode(codec.encode(content)) as any
+  assert.equal(back.interactiveMessage.carouselMessage.cards.length, 5); assert.equal(back.interactiveMessage.carouselMessage.carouselCardType, 1)
+  // header interaktif biasa mendukung video / dokumen juga
+  prepared.length = 0
+  await sock.sendMessage(DM, { interactive: { header: { title: 'V', video: 'https://example.com/v.mp4' }, body: 'x', buttons: [{ type: 'reply', text: 'Ok', id: 'o' }] } })
+  assert.deepEqual(prepared.map((p) => p[0]), ['video']); assert.ok((generateMessageContent(given) as any).interactiveMessage.header.videoMessage)
+  await sock.end()
+  ok('7. carousel/interactive: media dari link/path/Buffer di-upload otomatis')
+}
+
+// 8. media mentah di header.media memberi pesan error yang jelas (bukan "unknown field")
+assert.throws(() => generateMessageContent({ carousel: { cards: [{ header: { title: 'A', media: { url: 'https://x/y.jpg' } as any }, body: 'A', buttons: [{ type: 'reply', text: 'Ok', id: 'a' }] }] } }), /media.prepare|header\.image/)
+ok('8. header.media mentah → error yang jelas')
 console.log('ALL OK')
