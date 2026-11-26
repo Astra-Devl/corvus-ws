@@ -1,5 +1,6 @@
 import { MessageError } from '../core/errors.js'
 import type {
+  PaymentParams,
   ButtonLimits,
   ButtonResponse,
   InteractiveButton,
@@ -115,8 +116,56 @@ export function toNativeFlowButton(button: InteractiveButton): NativeFlowButton 
           rows: s.rows.map((r) => ({ header: r.header ?? '', title: r.title, description: r.description ?? '', id: r.id })),
         })),
       })
+    case 'location':
+      return json('send_location', { display_text: button.text ?? 'Kirim Lokasi' })
+    case 'reminder':
+      return json('cta_reminder', { display_text: button.text, ...(button.id && { id: button.id }) })
+    case 'cancel_reminder':
+      return json('cta_cancel_reminder', { display_text: button.text, ...(button.id && { id: button.id }) })
+    case 'address':
+      return json('address_message', { display_text: button.text ?? 'Isi Alamat', ...button.params })
+    case 'catalog':
+      return json('cta_catalog', { display_text: button.text ?? 'Lihat Katalog', ...(button.businessPhoneNumber && { business_phone_number: button.businessPhoneNumber }) })
+    case 'webview':
+      assertText('button.text', button.text, 100)
+      assertUrl('button.url', button.url)
+      return json('open_webview', { title: button.text, link: { in_app_webview: true, url: button.url } })
+    case 'payment':
+      return json(button.name ?? 'review_and_pay', buildPaymentParams(button.payment))
+    case 'raw':
+      return { name: button.name, buttonParamsJson: typeof button.params === 'string' ? button.params : JSON.stringify(button.params ?? {}) }
     default:
       throw new MessageError(`Unknown button type: ${String((button as { type?: unknown }).type)}`)
+  }
+}
+
+/** `PaymentParams` → parameter JSON `review_and_pay` (nilai dalam satuan minor, offset 100). */
+export function buildPaymentParams(input: PaymentParams | Record<string, unknown>): Record<string, unknown> {
+  if (!('referenceId' in input)) return input as Record<string, unknown> // sudah berbentuk parameter mentah
+  const p = input as PaymentParams
+  if (!(p.total > 0)) throw new MessageError('payment.total harus > 0')
+  const minor = (n: number): { value: number; offset: number } => ({ value: Math.round(n * 100), offset: 100 })
+  const items = p.items ?? []
+  return {
+    currency: p.currency ?? 'IDR',
+    total_amount: minor(p.total),
+    reference_id: p.referenceId,
+    type: p.type ?? 'physical-goods',
+    payment_settings: p.paymentSettings ?? [],
+    share_payment_status: p.sharePaymentStatus ?? false,
+    order: {
+      status: p.status ?? 'pending',
+      ...(p.description !== undefined && { description: p.description }),
+      subtotal: minor(items.length ? items.reduce((sum, it) => sum + it.price * (it.quantity ?? 1), 0) : p.total),
+      order_type: 'ORDER',
+      items: items.map((it) => ({
+        name: it.name,
+        amount: minor(it.price),
+        quantity: it.quantity ?? 1,
+        ...(it.retailerId && { retailer_id: it.retailerId }),
+        ...(it.productId && { product_id: it.productId }),
+      })),
+    },
   }
 }
 
