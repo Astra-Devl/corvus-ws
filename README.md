@@ -1,22 +1,26 @@
-<h1 align="center">corvus-ws</h1>
+<h1 align="center">🐦‍⬛ corvus-ws</h1>
 
-<p align="center">Library WhatsApp Web (multi-device) berbasis TypeScript & WebSocket, dibuat sendiri tanpa browser.</p>
+<p align="center">Library WhatsApp Web (multi-device) berbasis TypeScript & WebSocket, dibuat secara independen tanpa browser.</p>
 
-> corvus-ws adalah library independen, **bukan** fork Baileys dan **bukan** produk resmi WhatsApp. Gunakan dengan risiko sendiri.
+> corvus-ws adalah library independen dan **bukan** produk resmi WhatsApp. Gunakan dengan risiko sendiri.
 
 ## 📑 Daftar Isi
 
 - [Fitur](#-fitur)
-- [Status & Batasan](#️-status--batasan)
 - [Instalasi](#-instalasi)
 - [Koneksi](#-koneksi)
 - [Event](#-event)
 - [Message](#-message)
 - [Media](#-media)
 - [Interactive Button & Fitur Button Lainnya](#-interactive-button--fitur-button-lainnya)
+- [Context Info & External Ad Reply](#-context-info--external-ad-reply)
+- [Pesan Langka](#-pesan-langka)
+- [Pembayaran WhatsApp](#-pembayaran-whatsapp)
 - [Group Message](#-group-message)
 - [Channel Message](#-channel-message)
 - [Community Message](#-community-message)
+- [GoBiz (pembayaran QRIS)](#-gobiz-pembayaran-qris)
+- [AI (Gemini & Groq) + Toko Otomatis](#-ai-gemini--groq--toko-otomatis)
 - [Chat, Kontak, Panggilan, Privasi, Bisnis](#-chat-kontak-panggilan-privasi-bisnis)
 - [Store](#-store)
 - [Utilitas JID](#-utilitas-jid)
@@ -36,21 +40,8 @@
 | Group | Buat, metadata, peserta, pengaturan, ephemeral, undangan, join request |
 | Channel | Buat, follow, mute, kirim pesan, reaksi, ambil pesan |
 | Community | Buat, sub-grup, link/unlink, buat grup di komunitas |
+| AI | Balas otomatis dengan Gemini / Groq (kunci milik Anda), memori per chat, tool WhatsApp (tombol, list, carousel, media), toko jual-beli dengan QRIS GoBiz |
 | Lainnya | Chat (archive/pin/mute), kontak, panggilan, bisnis, privasi, store, history |
-
----
-
-## ⚠️ Status & Batasan
-
-Versi **0.1.0**. Hasil pengecekan kode & test bawaan (semua lulus):
-
-- Test berjalan melawan **server WhatsApp tiruan**, jadi belum terbukti dengan server asli.
-- **Token dictionary bawaan kosong.** Isi `dictionary` dan `clientPayload` agar bisa bicara dengan server asli.
-- **`onPairSuccess` belum disediakan library**, tulis sendiri handler setelah scan QR.
-- Pairing code: permintaan kode (`requestPairingCode`) sudah bawaan, tapi tahap penyelesaiannya (saat kode dimasukkan di HP) tetap butuh `onPairSuccess`. Format stanza belum diverifikasi ke server asli.
-- Channel butuh `channelQueryIds`; fitur chat butuh `appStateSync`.
-- Belum ada helper untuk poll, event/calendar message, dan status/story.
-- Button/list/interactive belum diverifikasi di perangkat penerima asli.
 
 ---
 
@@ -86,15 +77,13 @@ npm i corvus-ws@github:Astra-Devl/corvus-ws ws
 }
 ```
 
-> Instal dari GitHub butuh script `"prepare": "npm run build"` di `package.json` repo, karena folder `dist` tidak ikut di-commit.
-
 ---
 
 ## 🔌 Koneksi
 
 ### Hubungkan
 
-`makeSocket` mengembalikan `sock` yang sudah berisi `sock.sendMessage`, `sock.groupMetadata`, `sock.newsletterFollow`, dan seterusnya, jadi tidak perlu file tambahan. Semua contoh di bawah memakai `sock`.
+`makeSocket` mengembalikan `sock` yang sudah berisi `sock.sendMessage`, `sock.groupMetadata`, `sock.newsletterFollow`, dan seterusnya. Semua contoh di bawah memakai `sock`.
 
 ```js
 import { makeSocket, createMultiFileAuthState, createLogger, getDisconnectCode, DisconnectReason } from 'corvus-ws'
@@ -104,7 +93,6 @@ const auth = await createMultiFileAuthState('./session')
 const sock = makeSocket({
   auth,
   logger: createLogger({ level: 'info' }),
-  // untuk server asli: dictionary, clientPayload, onPairSuccess (lihat Status & Batasan)
 })
 
 sock.ev.on('creds.update', () => auth.saveCreds())
@@ -114,14 +102,12 @@ sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
   if (connection === 'open') console.log('✅ Terhubung sebagai', sock.user?.id)
   if (connection === 'close') {
     const code = getDisconnectCode(lastDisconnect?.error)
-    if (code === DisconnectReason.loggedOut) console.log('Logout, hapus ./session lalu login ulang.')
+    if (code === DisconnectReason.loggedOut) console.log('Logout, hapus sesi lalu login ulang.')
   }
 })
 
 await sock.connect()
 ```
-
-Folder sesi berisi kunci akun, masukkan ke `.gitignore`.
 
 ### Login via QR
 
@@ -364,7 +350,17 @@ Batas baca ke memori 64 MiB; untuk file besar gunakan `{ path }`.
 
 ## 🔘 Interactive Button & Fitur Button Lainnya
 
-Batas sisi-klien: reply button 3, template button 4, baris list 10, native flow button 10, kartu carousel 10. Tampilan di perangkat penerima bergantung kebijakan WhatsApp dan belum diverifikasi di server asli.
+Batas sisi-klien: reply button 3, template button 4, baris list 10, native flow button 10, kartu carousel 10.
+
+Node `<biz>` yang membuat button/list/interaktif dirender **ditambahkan otomatis** mengikuti stanza WhatsApp Web. Pesan ber-`<biz>` memakai `type="text"` tanpa `mediatype`.
+
+| Opsi (argumen ketiga `sendMessage`) | Fungsi |
+| --- | --- |
+| `bizNodes: false` | Matikan penambahan `<biz>` otomatis |
+| `bizBot: true` | Tambahkan `<bot biz_bot="1"/>` di chat 1:1 (default mati) |
+| `additionalNodes: [...]` | Node sendiri; bila memuat `<biz>`, node otomatis dilewati |
+
+Pesan `interactive` dikirim **langsung** (tanpa `viewOnceMessage`). Kalau perlu pembungkus, pakai `.wrap(true)` pada `ButtonBuilder` atau `wrap: true` pada input.
 
 ### 1. Reply Buttons
 
@@ -378,6 +374,19 @@ await sock.sendMessage(jid, {
       { id: 'btn_info', text: 'ℹ️ Info' },
       { id: 'btn_help', text: '🆘 Bantuan' },
     ],
+  },
+})
+```
+
+Dengan header lokasi + thumbnail (`headerType` 6):
+
+```js
+await sock.sendMessage(jid, {
+  buttons: {
+    text: 'Halo, pilih opsi',
+    footer: '© My Bot',
+    locationMessage: { name: 'My Bot', address: 'v1.0', jpegThumbnail: fs.readFileSync('./thumb.jpg') },
+    buttons: [{ id: '.owner', text: 'Owner' }, { id: '.menu', text: 'Menu' }],
   },
 })
 ```
@@ -453,6 +462,44 @@ await sock.sendMessage(jid, {
 })
 ```
 
+### Tipe tombol native flow lainnya
+
+Dipakai di `interactive`, `ButtonBuilder`, dan kartu `carousel`:
+
+| `type` | Fungsi | Contoh |
+| --- | --- | --- |
+| `location` | Minta pengguna kirim lokasi | `{ type: 'location', text: 'Kirim Lokasi' }` |
+| `reminder` / `cancel_reminder` | Pengingat | `{ type: 'reminder', text: 'Ingatkan saya', id: 'r1' }` |
+| `address` | Form alamat | `{ type: 'address', text: 'Isi Alamat' }` |
+| `catalog` | Katalog bisnis | `{ type: 'catalog', businessPhoneNumber: '628...' }` |
+| `webview` | Buka web di dalam WhatsApp | `{ type: 'webview', text: 'Buka', url: 'https://...' }` |
+| `payment` | Tombol pembayaran (`review_and_pay`, `payment_info`) | lihat [Pembayaran WhatsApp](#-pembayaran-whatsapp) |
+| `raw` | Nama + parameter JSON apa adanya | `{ type: 'raw', name: 'mpm', params: {} }` |
+
+```js
+await sock.sendMessage(jid, {
+  interactive: {
+    body: 'Pilih aksi',
+    buttons: [
+      { type: 'location', text: 'Kirim Lokasi' },
+      { type: 'webview', text: 'Buka Toko', url: 'https://toko.id' },
+      { type: 'reminder', text: 'Ingatkan', id: 'promo' },
+    ],
+  },
+})
+```
+
+**Reply buttons dan template klasik dengan media:** isi `image`, `video`, atau `document` (link, path, Buffer, atau stream; diunggah otomatis).
+
+```js
+await sock.sendMessage(jid, {
+  buttons: { text: 'Menu', footer: '© Bot', image: 'https://example.com/menu.jpg', buttons: [{ id: '.owner', text: 'Owner' }] },
+})
+await sock.sendMessage(jid, {
+  template: { text: 'Promo', video: './promo.mp4', buttons: [{ type: 'url', text: 'Beli', url: 'https://toko.id' }] },
+})
+```
+
 ### 5. ButtonBuilder
 
 ```js
@@ -474,22 +521,43 @@ await sock.sendMessage(jid, { interactive })
 
 ### 6. Carousel
 
-```js
-const foto = await sock.media.prepare('image', { path: './produk-a.jpg' })
+Setiap kartu boleh punya media: isi `image`, `video`, atau `document` dengan **link, path file, Buffer, atau stream**. Library mengunggahnya otomatis ke WhatsApp.
 
+```js
 await sock.sendMessage(jid, {
   carousel: {
     body: 'Geser untuk melihat produk',
     footer: 'Toko Corvus',
     cards: [
-      { header: { title: 'Produk A', media: foto }, body: 'Rp 50.000',
-        buttons: [{ type: 'url', text: 'Beli', url: 'https://example.com/a' }] },
-      { header: { title: 'Produk B' }, body: 'Rp 75.000',
-        buttons: [{ type: 'reply', text: 'Pesan', id: 'order_b' }] },
+      {
+        header: { title: 'Produk A', image: 'https://example.com/a.jpg' },       // link
+        body: 'Rp 50.000',
+        buttons: [{ type: 'url', text: 'Beli', url: 'https://example.com/a' }],
+      },
+      {
+        header: { title: 'Produk B', image: './produk-b.png' },                   // path file
+        body: 'Rp 75.000',
+        buttons: [{ type: 'reply', text: 'Pesan', id: 'order_b' }],
+      },
+      {
+        header: { title: 'Video', video: 'https://example.com/promo.mp4' },       // video
+        body: 'Lihat promo',
+        buttons: [{ type: 'copy', text: 'Salin kode', code: 'PROMO10' }],
+      },
+      {
+        header: { title: 'Katalog', document: './katalog.pdf', fileName: 'Katalog.pdf', mimetype: 'application/pdf' },
+        body: 'Unduh katalog',
+        buttons: [{ type: 'reply', text: 'Terima kasih', id: 'ok' }],
+      },
+      { body: 'Kartu tanpa media', buttons: [{ type: 'reply', text: 'Ok', id: 'x' }] },
     ],
   },
 })
 ```
+
+- Maksimal 10 kartu. `video` dengan `gif: true` diputar berulang. `cardType: 'album'` untuk album gambar (default `'hscroll'`, kartu geser).
+- `header.image/video/document` juga berlaku untuk `header` pesan `interactive` dan header utama carousel.
+- Kalau sudah punya hasil `sock.media.prepare(...)`, pakai `header: { title, media }`.
 
 ### 7. Membaca balasan tombol
 
@@ -508,6 +576,109 @@ sock.ev.on('messages.upsert', async ({ messages }) => {
   }
 })
 ```
+
+---
+
+## 🧩 Context Info & External Ad Reply
+
+Berlaku untuk **semua jenis pesan** (teks, media, button, list, interactive, carousel, lokasi, kontak, poll, event, ...). Taruh di isi pesan, atau di opsi ketiga `sendMessage` (opsi ketiga menang bila bentrok).
+
+```js
+// Kartu pratinjau link (external ad reply)
+await sock.sendMessage(jid, {
+  text: 'Cek toko kami!',
+  externalAdReply: {
+    title: 'Toko Corvus',
+    body: 'Diskon 50% hari ini',
+    thumbnail: 'https://example.com/thumb.jpg',   // link, path, atau Buffer (dibaca otomatis)
+    sourceUrl: 'https://toko.id',
+    mediaType: 'image',                           // 'image' | 'video' | 'none'
+    renderLargerThumbnail: true,
+    showAdAttribution: true,
+  },
+})
+
+// Tampil seolah diteruskan dari saluran WhatsApp
+await sock.sendMessage(jid, { text: 'Kabar terbaru', forwardedNewsletter: { jid: '120363...@newsletter', name: 'Info Corvus' } })
+
+// Mention semua anggota grup, tanda "diteruskan", dan pesan sementara
+await sock.sendMessage(groupJid, { text: 'Halo semua!', mentionAll: true, isForwarded: true, forwardingScore: 5 })
+
+// Lewat opsi ketiga (berlaku untuk jenis pesan apa pun)
+await sock.sendMessage(jid, { image: './a.jpg', caption: 'Halo' }, { contextInfo: { externalAdReply: { title: 'Promo' } }, ephemeralExpiration: 86400 })
+```
+
+`contextInfo` juga menerima `groupMentions`, `entryPointConversionSource`, `alwaysShowAdAttribution`, dan `raw` (field `ContextInfo` mentah).
+
+---
+
+## 🎁 Pesan Langka
+
+```js
+// Event / acara (kalender)
+await sock.sendMessage(groupJid, { event: { name: 'Rapat Bulanan', description: 'Via Zoom', startDate: new Date('2026-12-01T10:00:00+07:00'), endDate: new Date('2026-12-01T11:00:00+07:00'), location: { degreesLatitude: -6.2, degreesLongitude: 106.8, name: 'Jakarta' } } })
+
+// Poll (selectableCount: 0 = bebas, 1 = pilih satu; toAnnouncementGroup untuk grup pengumuman komunitas)
+await sock.sendMessage(jid, { poll: { name: 'Makan apa?', values: ['Nasi goreng', 'Mie ayam'], selectableCount: 1 } })
+
+// Sematkan / lepas sematan pesan (duration detik: 86400, 604800, 2592000)
+await sock.sendMessage(groupJid, { pin: { key: msg.key, type: 'pin', duration: 604800 } })
+await sock.sendMessage(groupJid, { pin: { key: msg.key, type: 'unpin' } })
+
+// Album (beberapa foto/video terkelompok)
+await sock.sendAlbumMessage(jid, [{ image: './1.jpg', caption: 'Satu' }, { image: 'https://example.com/2.jpg' }, { video: './3.mp4' }])
+
+// Kartu undangan grup (kode undangan diambil otomatis; Anda harus admin)
+await sock.sendGroupInvite(jid, '120363...@g.us', 'Gabung grup kami ya')
+
+// Panggilan terjadwal, video bulat (PTV), minta nomor telepon, status grup
+await sock.sendMessage(jid, { scheduledCall: { title: 'Sync mingguan', at: new Date('2026-12-01T03:00:00Z'), type: 'video' } })
+await sock.sendMessage(jid, { cancelScheduledCall: scheduledMsg.key })
+await sock.sendMessage(jid, { ptv: './video-bulat.mp4' })
+await sock.sendMessage(jid, { requestPhoneNumber: true })
+await sock.sendMessage(groupJid, { groupStatus: { text: 'Status untuk grup' } })      // atau { image: ..., caption } / { video: ... }
+```
+
+---
+
+## 💸 Pembayaran WhatsApp
+
+Pesan pembayaran bawaan WhatsApp. Ketersediaannya berbeda per negara dan akun.
+
+```js
+// Minta pembayaran (nominal dalam satuan mata uang utama)
+await sock.sendMessage(jid, { requestPayment: { amount: 50000, currency: 'IDR', from: jid, note: 'Pembayaran pesanan #12', expiresAt: Math.floor(Date.now() / 1000) + 3600 } })
+await sock.sendMessage(jid, { sendPayment: { requestKey: requestMsg.key, note: 'Sudah dibayar' } })
+await sock.sendMessage(jid, { cancelPaymentRequest: requestMsg.key })
+await sock.sendMessage(jid, { declinePaymentRequest: requestMsg.key })
+await sock.sendMessage(jid, { paymentInvite: { service: 'UPI' } })
+
+// Produk dan pesanan (katalog bisnis)
+await sock.sendMessage(jid, { product: { productId: 'p1', title: 'Kopi Arabika', price: 25000, businessOwnerJid: sock.user.id, image: 'https://example.com/kopi.jpg' } })
+await sock.sendMessage(jid, { order: { orderId: 'ORD-1', itemCount: 2, title: 'Pesanan Kopi', sellerJid: sock.user.id, total: 50000, thumbnail: 'https://example.com/t.jpg', status: 'accepted' } })
+```
+
+**Tombol pembayaran** (native flow `review_and_pay`) bisa dipakai di `interactive` maupun kartu `carousel`:
+
+```js
+await sock.sendMessage(jid, {
+  interactive: {
+    body: 'Konfirmasi pesanan Anda',
+    buttons: [{
+      type: 'payment',                                  // name default: 'review_and_pay'; atau 'payment_info'
+      payment: {
+        referenceId: 'ORD-1',
+        currency: 'IDR',
+        total: 50000,
+        items: [{ name: 'Kopi Arabika', price: 25000, quantity: 2 }],
+        paymentSettings: [{ type: 'payment_link', payment_link: { uri: 'https://bayar.toko.id/ORD-1' } }],
+      },
+    }],
+  },
+})
+```
+
+Untuk pembayaran QRIS Indonesia yang terverifikasi otomatis, lihat [GoBiz](#-gobiz-pembayaran-qris).
 
 ---
 
@@ -606,7 +777,25 @@ await sock.newsletterReactMessage(channelJid, pesan[0].serverId, '👍')
 await sock.newsletterSubscribeUpdates(channelJid)
 ```
 
-Channel hanya mendukung teks dan media lewat `sendMessage`.
+**Fitur channel tambahan**
+
+```js
+// Ambil ID saluran dari URL (juga menerima kode undangan saja)
+const channelJid = await sock.newsletterIdFromUrl('https://whatsapp.com/channel/0029VaABCdefGHIjkl12')   // alias: sock.newsletterUrlId(...)
+const info = await sock.newsletterFromUrl('https://whatsapp.com/channel/0029VaABCdefGHIjkl12')
+
+// Kirim teks / foto / video / audio / dokumen ke saluran
+await sock.sendMessage(channelJid, { text: 'Halo subscriber!' })
+await sock.sendMessage(channelJid, { image: 'https://example.com/poster.jpg', caption: 'Poster' })
+await sock.sendMessage(channelJid, { video: './promo.mp4', caption: 'Promo' })
+await sock.sendMessage(channelJid, { audio: './lagu.ogg', ptt: true })
+await sock.sendMessage(channelJid, { document: './katalog.pdf', fileName: 'Katalog.pdf', mimetype: 'application/pdf' })
+
+// Reaksi emoji pada pesan saluran (pakai serverId dari fetchMessages)
+const [latest] = await sock.newsletterFetchMessages('jid', channelJid, 1)
+await sock.newsletterReactMessage(channelJid, latest.serverId, '🔥')
+await sock.newsletterReactMessage(channelJid, latest.serverId)          // hapus reaksi
+```
 
 ---
 
@@ -635,6 +824,173 @@ await sock.sendMessage(announceGroupJid, { text: 'Pengumuman komunitas 📣' })
 // kelola peserta komunitas dengan fungsi grup
 await sock.groupParticipantsUpdate(communityJid, ['6281234567890@s.whatsapp.net'], 'add')
 ```
+
+---
+
+## 🧾 GoBiz (pembayaran QRIS)
+
+Pembayaran QRIS lewat GoBiz/GoPay Merchant. **Tidak ada pengaturan global**: QRIS, email, password, nomor HP, dan token diberikan pada pemanggilan masing-masing fungsi.
+
+Aturan pesan: bila ada foto → dikirim sebagai foto dengan `caption`; bila tidak ada → teks (`text`). Template boleh string atau fungsi, dengan placeholder `{amount}`, `{orderId}`, `{expires}`, `{qris}`, `{merchant}`, `{time}`, `{error}` sesuai fungsi.
+
+```js
+// 1) Buat tagihan: QR QRIS dinamis dikirim sebagai foto + caption
+const bill = await sock.sendCreatePaymentGobiz(m.chat, {
+  qris: '000201010211...6304ABCD',          // string QRIS statis milik merchant
+  amount: 25000,                            // Rupiah
+  orderId: 'INV-001',
+  expiresInMs: 10 * 60_000,
+  caption: '💳 Bayar *{amount}* (order {orderId}) sebelum {expires}',
+  // image: false → kirim teks saja | image: './qris.png' → pakai gambar sendiri
+  send: { quoted: m },                      // opsi kirim biasa (quoted, contextInfo, ...)
+})
+
+// 2) Cek / tunggu pembayaran (cek sekali, atau tunggu sampai masuk / habis waktu)
+const status = await sock.sendStatusPaymentGobiz(m.chat, {
+  cacheFile: './gopay_cache.json',                            // token & merchant dibaca dari berkas cache
+  // auth: { email: 'merchant@mail.com', password: '***' },   // atau auth langsung: { phone } setelah login OTP, atau { token }
+  amount: 25000,
+  since: bill.since,                                          // hanya hitung pembayaran setelah tagihan dibuat
+  wait: { timeoutMs: 5 * 60_000, intervalMs: 6_000 },         // hilangkan untuk cek sekali
+  text: { paid: '✅ Lunas {amount}', timeout: '⌛ Waktu habis' },
+  image: { paid: 'https://example.com/lunas.jpg' },           // foto per status (opsional)
+})
+if (status.status === 'paid') { /* kirim produk */ }          // 'paid' | 'pending' | 'timeout' | 'error'
+
+// 3) Login password (token disimpan di memori; opsi cacheFile untuk menyimpan ke berkas)
+await sock.sendLoginGobiz(m.chat, { auth: { email: 'merchant@mail.com', password: '***', cacheFile: './gobiz-cache.json' } })
+
+// 4) Login OTP: minta kode, lalu verifikasi
+await sock.sendLoginGobiz(m.chat, { auth: { phone: '081234567890' } })
+await sock.sendOtpGobiz(m.chat, { auth: { phone: '081234567890' }, otp: '123456' })
+```
+
+Catatan:
+- Gambar QR dibuat dengan paket opsional `qrcode` (`npm i qrcode`). Tanpa paket itu, tagihan dikirim sebagai teks berisi kode QRIS (`imageSent: false` di hasil).
+- Login memakai `curl` di server; pastikan `curl` terpasang. Kredensial dikirim lewat stdin, bukan argumen proses.
+- Pesan tidak pernah memuat password atau token; email dan nomor ditampilkan tersamar.
+- Gambar QR dikirim langsung sebagai media WhatsApp, tanpa mengunggah ke layanan pihak ketiga.
+- Klien tanpa socket tersedia sebagai `GoBizClient`, `buildDynamicQris`, `crc16ccitt`.
+
+---
+
+## 🤖 AI (Gemini & Groq) + Toko Otomatis
+
+AI adalah bagian dari library: aktifkan dengan opsi `ai` pada `makeSocket`. **Kunci API dan nama model harus milik Anda sendiri**; library tidak menyertakan kunci maupun model bawaan.
+
+```js
+import { makeSocket } from 'corvus-ws'
+
+const sock = makeSocket({
+  auth,
+  ai: {
+    gemini: { apiKey: process.env.GEMINI_API_KEY, model: 'gemini-3.6-flash' },     // model: sesuai dokumentasi Google saat ini
+    groq: { apiKey: process.env.GROQ_API_KEY, model: process.env.GROQ_MODEL },      // cadangan bila Gemini gagal/kuota habis
+    primary: 'gemini',                                                              // penyedia yang dicoba lebih dulu
+    name: 'Corvi',
+    persona: 'Kamu kasir toko roti yang ramah dan ringkas.',
+    ownerJids: ['628111@s.whatsapp.net'],
+  },
+})
+```
+
+Selesai: bot membalas chat pribadi otomatis. Pakai penyedia lain yang kompatibel OpenAI lewat `providers: [{ provider: 'openai', name: 'x', baseUrl: '...', apiKey, model }]`, atau berikan objek `{ name, chat(req) }` sendiri.
+
+### Kapan AI menjawab
+
+| Opsi `triggers` | Arti |
+| --- | --- |
+| `private` (default `true`) | Balas chat pribadi |
+| `group: 'mention'` (default) | Di grup hanya bila bot di-tag, pesannya dibalas, atau namanya disebut |
+| `group: 'prefix'` + `prefixes: ['ai ']` | Di grup hanya pesan berawalan itu |
+| `group: 'always'` / `'off'` | Semua pesan / tidak sama sekali |
+| `ignorePrefixes` (default `. ! / #`) | Pesan berawalan ini dianggap perintah bot lain dan **tidak** dijawab AI |
+
+Tersedia juga `allow` / `block` (daftar JID), `rateLimit: { messages, windowMs }` (default 8 pesan/menit per pengguna), `memory: { maxMessages, ttlMs, file }`, `vision: true` (teruskan gambar masuk ke model yang mendukung gambar), `maxSteps`, `typing`, `fallbackReply`, dan `onError`.
+
+Perintah kontrol di chat (awalan `!ai`, ubah dengan `controlCommand`): `!ai reset` (siapa saja), serta khusus pemilik: `!ai on`, `!ai off`, `!ai persona <teks>`, `!ai persona reset`, `!ai status`.
+
+### Bersama perintah bot Anda
+
+```js
+const sock = makeSocket({ auth, ai: { /* ... */ autoReply: false } })   // matikan pemasangan otomatis
+
+sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  for (const m of messages) {
+    if (await sock.ai.handle(m)) continue        // true = AI sudah menjawab
+    // ... lanjut ke handler perintah Anda
+  }
+})
+
+const jawaban = await sock.ai.ask({ jid, text: 'rekomendasikan produk', sender: jid })   // pemakaian programatik
+sock.enableAi({ /* ... */ })                                                             // atau aktifkan belakangan
+```
+
+### Apa yang bisa dilakukan AI (tool)
+
+AI memakai fitur corvus-ws lewat tool, jadi tombol dan media benar-benar terkirim:
+
+| Tool | Fitur |
+| --- | --- |
+| `send_buttons`, `send_list`, `send_interactive`, `send_carousel` | Tombol, daftar, pesan interaktif (URL/telepon/salin/lokasi), carousel dengan gambar |
+| `send_image`, `send_video`, `send_audio`, `send_document` | Media dari URL publik |
+| `send_location`, `send_contact`, `send_poll`, `react` | Lokasi, kontak, poll, reaksi |
+| `notify_owner`, `get_time` | Teruskan ke pemilik, waktu saat ini |
+| `shop_*` | Toko (lihat di bawah) |
+
+Tambah tool sendiri (juga `ownerOnly: true` untuk perintah khusus pemilik):
+
+```js
+ai: {
+  // ...
+  tools: [{
+    name: 'cek_ongkir',
+    description: 'Hitung ongkir ke kota tujuan',
+    parameters: { type: 'object', properties: { kota: { type: 'string' } }, required: ['kota'] },
+    async run({ kota }, ctx) { return { kota, ongkir: 15000 } },      // ctx: { sock, jid, sender, isGroup, isOwner, message }
+  }],
+  rules: ['Selalu tawarkan produk terlaris di akhir jawaban.'],       // aturan tambahan di prompt
+}
+```
+
+### Toko jual-beli otomatis
+
+```js
+ai: {
+  // ...
+  shop: {
+    name: 'Toko Roti',
+    products: [
+      { id: 'kopi', name: 'Kopi Arabika', price: 25000, category: 'Minuman', stock: 20, image: 'https://example.com/kopi.jpg',
+        description: 'Biji pilihan 250g', deliver: 'Kode voucher: ABC-123' },                 // dikirim setelah terbayar
+      { id: 'ebook', name: 'Ebook Resep', price: 10000, category: 'Digital',
+        deliver: (order, { qty }) => `Unduh: https://dl.example/${order.id}` },              // atau fungsi
+    ],                                                                                        // juga boleh: () => ambilDariDatabase()
+    payment: { qris: '000201010211...6304ABCD', cacheFile: './gopay_cache.json', merchantName: 'Toko Roti', expiresInMs: 10 * 60_000 },
+    storeFile: './shop.json',                        // keranjang & pesanan bertahan saat restart
+    ownerJids: ['628111@s.whatsapp.net'],            // diberi tahu saat ada pembayaran
+    onPaid: async (order) => { /* catat ke database, dll. */ },
+  },
+}
+```
+
+Alur: pelanggan bertanya/memilih → AI menampilkan menu, detail produk, atau carousel → keranjang → **checkout** (tagihan QRIS dikirim) → pembayaran dicek otomatis ke GoBiz → produk terkirim, stok berkurang, pemilik diberi tahu.
+
+Jaminan di dalam kode:
+- Harga, total, dan stok **selalu dari katalog**; AI hanya mengirim ID produk dan jumlah.
+- `shop_checkout` wajib `confirm: true` setelah pengguna setuju.
+- Status lunas hanya dari riwayat transaksi GoBiz asli; klaim "sudah bayar" dari pengguna tidak dipercaya.
+- Tiap pesanan diberi **kode unik** 1–99 Rupiah (matikan dengan `payment.uniqueCode: false`) agar nominal berbeda; satu transaksi tidak bisa melunasi dua pesanan.
+- Produk dikirim sekali (idempoten) dan pesanan kedaluwarsa otomatis.
+- Alur tombol `shop:menu`, `shop:product:<id>`, `shop:add:<id>`, `shop:cart`, `shop:checkout`, `shop:pay:<order>`, `shop:cancel:<order>`, `shop:orders` berjalan **tanpa memanggil AI**, jadi toko tetap jalan walau kuota API habis.
+
+### Keamanan & Privasi
+
+- Isi pesan pengguna dikirim ke penyedia AI yang Anda pilih (Google / Groq) dan memakai kuota/biaya akun Anda.
+- URL media dari AI hanya diunduh bila publik: alamat internal (localhost, jaringan privat, metadata cloud), redirect ke sana, dan berkas besar ditolak.
+- Kunci API tidak pernah masuk ke URL, log, atau pesan error.
+- Teks pengguna dan hasil tool diperlakukan sebagai data, bukan perintah; tool `ownerOnly` tidak ditawarkan ke selain pemilik.
+- Deteksi tag bot di grup bergantung pada data `mentionedJid` dari WhatsApp (mendukung PN dan LID).
 
 ---
 
@@ -832,4 +1188,6 @@ process.on('SIGINT', async () => {
 
 ## 📄 Lisensi
 
-MIT © AstraCodeX. corvus-ws tidak berafiliasi dengan WhatsApp LLC atau Meta. Dilarang dipakai untuk spam, penipuan, atau aktivitas melanggar hukum.
+MIT © corvus-ws.
+
+corvus-ws tidak berafiliasi dengan WhatsApp LLC atau Meta. Dilarang dipakai untuk spam, penipuan, atau aktivitas melanggar hukum.
