@@ -26,6 +26,22 @@ const CONTEXT_CAPABLE = new Set([
   'templateMessage',
   'interactiveMessage',
   'pollCreationMessage',
+  'pollCreationMessageV2',
+  'pollCreationMessageV3',
+  'eventMessage',
+  'productMessage',
+  'orderMessage',
+  'albumMessage',
+  'requestPhoneNumberMessage',
+  'groupInviteMessage',
+  'ptvMessage',
+])
+
+/** Jenis pesan yang tidak membawa `contextInfo`; konteksnya diabaikan (tidak error). */
+const CONTEXT_FREE = new Set([
+  'sendPaymentMessage', 'requestPaymentMessage', 'cancelPaymentRequestMessage', 'declinePaymentRequestMessage',
+  'paymentInviteMessage', 'invoiceMessage', 'pinInChatMessage', 'scheduledCallCreationMessage', 'scheduledCallEditMessage',
+  'groupStatusMessageV2', 'groupStatusMentionMessage', 'statusMentionMessage',
 ])
 
 export function buildContextInfo(options: ContextInfoOptions): Record<string, unknown> {
@@ -56,6 +72,7 @@ export function attachContextInfo(content: MessageContent, contextInfo: Record<s
     const { conversation, ...rest } = content
     return { ...rest, extendedTextMessage: { text: conversation, contextInfo } }
   }
+  if (CONTEXT_FREE.has(type)) return content
   if (!CONTEXT_CAPABLE.has(type)) {
     throw new MessageError(`Message type "${type}" does not support contextInfo`, { data: { type } })
   }
