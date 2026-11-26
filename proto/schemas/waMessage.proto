@@ -43,6 +43,26 @@ message Message {
   optional FutureProofMessage viewOnceMessageV2 = 55;
   optional FutureProofMessage editedMessage = 58;
   optional FutureProofMessage viewOnceMessageV2Extension = 59;
+  optional SendPaymentMessage sendPaymentMessage = 16;
+  optional RequestPaymentMessage requestPaymentMessage = 22;
+  optional DeclinePaymentRequestMessage declinePaymentRequestMessage = 23;
+  optional CancelPaymentRequestMessage cancelPaymentRequestMessage = 24;
+  optional ProductMessage productMessage = 30;
+  optional OrderMessage orderMessage = 38;
+  optional InvoiceMessage invoiceMessage = 41;
+  optional PaymentInviteMessage paymentInviteMessage = 44;
+  optional RequestPhoneNumberMessage requestPhoneNumberMessage = 54;
+  optional PollCreationMessage pollCreationMessageV2 = 60;
+  optional ScheduledCallCreationMessage scheduledCallCreationMessage = 61;
+  optional PinInChatMessage pinInChatMessage = 63;
+  optional PollCreationMessage pollCreationMessageV3 = 64;
+  optional ScheduledCallEditMessage scheduledCallEditMessage = 65;
+  optional VideoMessage ptvMessage = 66;
+  optional EventMessage eventMessage = 75;
+  optional FutureProofMessage statusMentionMessage = 87;
+  optional AlbumMessage albumMessage = 83;
+  optional FutureProofMessage groupStatusMentionMessage = 92;
+  optional FutureProofMessage groupStatusMessageV2 = 103;
 
   message SenderKeyDistributionMessage {
     optional string groupId = 1;
@@ -79,6 +99,13 @@ message ContextInfo {
   optional string groupSubject = 34;
   optional string parentGroupJid = 35;
   optional ForwardedNewsletterMessageInfo forwardedNewsletterMessageInfo = 43;
+  optional string entryPointConversionSource = 29;
+  optional string entryPointConversionApp = 30;
+  optional uint32 entryPointConversionDelaySeconds = 31;
+  repeated GroupMention groupMentions = 40;
+  optional bool alwaysShowAdAttribution = 48;
+  optional bool isGroupStatus = 66;
+  optional uint32 nonJidMentions = 70;
 
   message ExternalAdReplyInfo {
     optional string title = 1;
@@ -581,6 +608,13 @@ message InteractiveMessage {
   message CarouselMessage {
     repeated InteractiveMessage cards = 1;
     optional int32 messageVersion = 2;
+    optional CarouselCardType carouselCardType = 3;
+
+    enum CarouselCardType {
+      UNKNOWN = 0;
+      HSCROLL_CARDS = 1;
+      ALBUM_IMAGE = 2;
+    }
   }
 }
 
@@ -605,5 +639,202 @@ message InteractiveResponseMessage {
     optional string name = 1;
     optional string paramsJson = 2;
     optional int32 version = 3;
+  }
+}
+
+message GroupMention {
+  optional string groupJid = 1;
+  optional string groupSubject = 2;
+}
+
+message Money {
+  optional int64 value = 1;
+  optional uint32 offset = 2;
+  optional string currencyCode = 3;
+}
+
+message EventMessage {
+  optional ContextInfo contextInfo = 1;
+  optional bool isCanceled = 2;
+  optional string name = 3;
+  optional string description = 4;
+  optional LocationMessage location = 5;
+  optional string joinLink = 6;
+  optional int64 startTime = 7;
+  optional int64 endTime = 8;
+  optional bool extraGuestsAllowed = 9;
+  optional bool isScheduleCall = 10;
+  optional bool hasReminder = 11;
+  optional int64 reminderOffsetSec = 12;
+}
+
+message RequestPaymentMessage {
+  optional Message noteMessage = 4;
+  optional string currencyCodeIso4217 = 1;
+  optional uint64 amount1000 = 2;
+  optional string requestFrom = 3;
+  optional int64 expiryTimestamp = 5;
+  optional Money amount = 6;
+}
+
+message SendPaymentMessage {
+  optional Message noteMessage = 2;
+  optional MessageKey requestMessageKey = 3;
+  optional string transactionData = 5;
+}
+
+message CancelPaymentRequestMessage {
+  optional MessageKey key = 1;
+}
+
+message DeclinePaymentRequestMessage {
+  optional MessageKey key = 1;
+}
+
+message PaymentInviteMessage {
+  optional ServiceType serviceType = 1;
+  optional int64 expiryTimestamp = 2;
+
+  enum ServiceType {
+    UNKNOWN = 0;
+    FBPAY = 1;
+    NOVI = 2;
+    UPI = 3;
+  }
+}
+
+message PinInChatMessage {
+  optional MessageKey key = 1;
+  optional Type type = 2;
+  optional int64 senderTimestampMs = 3;
+
+  enum Type {
+    UNKNOWN_TYPE = 0;
+    PIN_FOR_ALL = 1;
+    UNPIN_FOR_ALL = 2;
+  }
+}
+
+message AlbumMessage {
+  optional uint32 expectedImageCount = 2;
+  optional uint32 expectedVideoCount = 3;
+  optional ContextInfo contextInfo = 17;
+}
+
+message ScheduledCallCreationMessage {
+  optional int64 scheduledTimestampMs = 1;
+  optional CallType callType = 2;
+  optional string title = 3;
+
+  enum CallType {
+    UNKNOWN = 0;
+    VOICE = 1;
+    VIDEO = 2;
+  }
+}
+
+message ScheduledCallEditMessage {
+  optional MessageKey key = 1;
+  optional EditType editType = 2;
+
+  enum EditType {
+    UNKNOWN = 0;
+    CANCEL = 1;
+  }
+}
+
+message RequestPhoneNumberMessage {
+  optional ContextInfo contextInfo = 1;
+}
+
+message OrderMessage {
+  optional string orderId = 1;
+  optional bytes thumbnail = 2;
+  optional int32 itemCount = 3;
+  optional OrderStatus status = 4;
+  optional OrderSurface surface = 5;
+  optional string message = 6;
+  optional string orderTitle = 7;
+  optional string sellerJid = 8;
+  optional string token = 9;
+  optional int64 totalAmount1000 = 10;
+  optional string totalCurrencyCode = 11;
+  optional int32 messageVersion = 12;
+  optional MessageKey orderRequestMessageId = 13;
+  optional string catalogType = 15;
+  optional ContextInfo contextInfo = 17;
+
+  enum OrderStatus {
+    ORDER_STATUS_UNSPECIFIED = 0;
+    INQUIRY = 1;
+    ACCEPTED = 2;
+    DECLINED = 3;
+  }
+
+  enum OrderSurface {
+    ORDER_SURFACE_UNSPECIFIED = 0;
+    CATALOG = 1;
+  }
+}
+
+message ProductMessage {
+  optional ProductSnapshot product = 1;
+  optional string businessOwnerJid = 2;
+  optional CatalogSnapshot catalog = 4;
+  optional string body = 5;
+  optional string footer = 6;
+  optional ContextInfo contextInfo = 17;
+
+  message CatalogSnapshot {
+    optional ImageMessage catalogImage = 1;
+    optional string title = 2;
+    optional string description = 3;
+  }
+
+  message ProductSnapshot {
+    optional ImageMessage productImage = 1;
+    optional string productId = 2;
+    optional string title = 3;
+    optional string description = 4;
+    optional string currencyCode = 5;
+    optional int64 priceAmount1000 = 6;
+    optional string retailerId = 7;
+    optional string url = 8;
+    optional uint32 productImageCount = 9;
+    optional string firstImageId = 11;
+    optional int64 salePriceAmount1000 = 12;
+    optional string signedUrl = 13;
+  }
+}
+
+message InvoiceMessage {
+  optional string note = 1;
+  optional string token = 2;
+  optional AttachmentType attachmentType = 3;
+  optional string attachmentMimetype = 4;
+  optional bytes attachmentMediaKey = 5;
+  optional int64 attachmentMediaKeyTimestamp = 6;
+  optional bytes attachmentFileSha256 = 7;
+  optional bytes attachmentFileEncSha256 = 8;
+  optional string attachmentDirectPath = 9;
+  optional bytes attachmentJpegThumbnail = 10;
+
+  enum AttachmentType {
+    IMAGE = 0;
+    PDF = 1;
+  }
+}
+
+message MessageAssociation {
+  optional AssociationType associationType = 1;
+  optional MessageKey parentMessageKey = 2;
+  optional int32 messageIndex = 3;
+
+  enum AssociationType {
+    UNKNOWN = 0;
+    MEDIA_ALBUM = 1;
+    BOT_PLUGIN = 2;
+    EVENT_COVER_IMAGE = 3;
+    STATUS_POLL = 4;
   }
 }
