@@ -1,4 +1,5 @@
 import type { HeaderInput, InteractiveInput } from './button-types.js'
+import { MessageError } from '../core/errors.js'
 import { assertText } from './button-utils.js'
 import { buildNativeFlow } from './native-flow.js'
 import type { MessageContent } from './message-utils.js'
@@ -15,8 +16,16 @@ export function wrapInteractive(content: MessageContent): MessageContent {
   }
 }
 
+const RAW_SOURCE_KEYS = ['url', 'path', 'buffer', 'stream']
+
 export function buildHeader(header: HeaderInput | undefined): MessageContent | undefined {
   if (!header) return undefined
+  if (header.media && RAW_SOURCE_KEYS.some((k) => k in header.media!)) {
+    throw new MessageError(
+      'header.media harus hasil client.media.prepare(...) (mis. { imageMessage }). Untuk link/file langsung, pakai header.image / header.video / header.document lewat sock.sendMessage.',
+      { code: 'ERR_VALIDATION' },
+    )
+  }
   if (header.title !== undefined) assertText('header.title', header.title, 60 * 4)
   return {
     ...(header.title !== undefined && { title: header.title }),
