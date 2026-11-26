@@ -25,7 +25,7 @@ export function buildCarouselMessage(input: CarouselInput): MessageContent {
       ...(header && { header }),
       ...(input.body !== undefined && { body: { text: input.body } }),
       ...(input.footer !== undefined && { footer: { text: input.footer } }),
-      carouselMessage: { cards, messageVersion: 1 },
+      carouselMessage: { cards, messageVersion: 1, carouselCardType: input.cardType === 'album' ? 2 : 1 },
     },
   }
   return input.wrap === true ? wrapInteractive(content) : content
