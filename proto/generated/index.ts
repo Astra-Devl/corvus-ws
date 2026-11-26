@@ -151,6 +151,25 @@ export const PROTO_NAMES = {
   InteractiveResponseMessage: "corvus.InteractiveResponseMessage",
   InteractiveResponseMessage_Body: "corvus.InteractiveResponseMessage.Body",
   InteractiveResponseMessage_NativeFlowResponseMessage: "corvus.InteractiveResponseMessage.NativeFlowResponseMessage",
+  GroupMention: "corvus.GroupMention",
+  Money: "corvus.Money",
+  EventMessage: "corvus.EventMessage",
+  RequestPaymentMessage: "corvus.RequestPaymentMessage",
+  SendPaymentMessage: "corvus.SendPaymentMessage",
+  CancelPaymentRequestMessage: "corvus.CancelPaymentRequestMessage",
+  DeclinePaymentRequestMessage: "corvus.DeclinePaymentRequestMessage",
+  PaymentInviteMessage: "corvus.PaymentInviteMessage",
+  PinInChatMessage: "corvus.PinInChatMessage",
+  AlbumMessage: "corvus.AlbumMessage",
+  ScheduledCallCreationMessage: "corvus.ScheduledCallCreationMessage",
+  ScheduledCallEditMessage: "corvus.ScheduledCallEditMessage",
+  RequestPhoneNumberMessage: "corvus.RequestPhoneNumberMessage",
+  OrderMessage: "corvus.OrderMessage",
+  ProductMessage: "corvus.ProductMessage",
+  ProductMessage_CatalogSnapshot: "corvus.ProductMessage.CatalogSnapshot",
+  ProductMessage_ProductSnapshot: "corvus.ProductMessage.ProductSnapshot",
+  InvoiceMessage: "corvus.InvoiceMessage",
+  MessageAssociation: "corvus.MessageAssociation",
   WebMessageInfo: "corvus.WebMessageInfo",
   UserReceipt: "corvus.UserReceipt",
   Reaction: "corvus.Reaction",
@@ -270,6 +289,25 @@ export interface ProtoTypes {
   InteractiveResponseMessage: waMessage.InteractiveResponseMessage
   InteractiveResponseMessage_Body: waMessage.InteractiveResponseMessage_Body
   InteractiveResponseMessage_NativeFlowResponseMessage: waMessage.InteractiveResponseMessage_NativeFlowResponseMessage
+  GroupMention: waMessage.GroupMention
+  Money: waMessage.Money
+  EventMessage: waMessage.EventMessage
+  RequestPaymentMessage: waMessage.RequestPaymentMessage
+  SendPaymentMessage: waMessage.SendPaymentMessage
+  CancelPaymentRequestMessage: waMessage.CancelPaymentRequestMessage
+  DeclinePaymentRequestMessage: waMessage.DeclinePaymentRequestMessage
+  PaymentInviteMessage: waMessage.PaymentInviteMessage
+  PinInChatMessage: waMessage.PinInChatMessage
+  AlbumMessage: waMessage.AlbumMessage
+  ScheduledCallCreationMessage: waMessage.ScheduledCallCreationMessage
+  ScheduledCallEditMessage: waMessage.ScheduledCallEditMessage
+  RequestPhoneNumberMessage: waMessage.RequestPhoneNumberMessage
+  OrderMessage: waMessage.OrderMessage
+  ProductMessage: waMessage.ProductMessage
+  ProductMessage_CatalogSnapshot: waMessage.ProductMessage_CatalogSnapshot
+  ProductMessage_ProductSnapshot: waMessage.ProductMessage_ProductSnapshot
+  InvoiceMessage: waMessage.InvoiceMessage
+  MessageAssociation: waMessage.MessageAssociation
   WebMessageInfo: waWeb.WebMessageInfo
   UserReceipt: waWeb.UserReceipt
   Reaction: waWeb.Reaction
