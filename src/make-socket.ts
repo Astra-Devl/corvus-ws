@@ -45,6 +45,7 @@ import type { TransportFactory } from './transport/interface.js'
 import type { CorvusEvents } from './types/events.js'
 import { attachSockApi, type SockApi } from './sock-api.js'
 import { LidMappingStore } from './signal/lid-mapping.js'
+import { AiAgent, type AiConfig } from './ai/agent.js'
 import { TcTokenStore } from './signal/tc-token.js'
 import { activeIq, buildPreKeyUpload, INITIAL_PREKEY_COUNT, MIN_PREKEY_COUNT, preKeyCountQuery } from './auth/prekey-upload.js'
 import {
@@ -92,6 +93,11 @@ export interface MakeSocketOptions extends SocketConfig {
   saveCredsDebounceMs?: number
   /** Setelah login: unggah pre-key bila server kekurangan dan kirim `passive/active` (default `true`). */
   postLogin?: boolean
+  /**
+   * Aktifkan AI bawaan (Gemini / Groq) dengan kunci API milik Anda: membalas pesan otomatis, memakai
+   * tombol/list/media lewat tool, dan melayani jual-beli. Lihat `AiConfig`.
+   */
+  ai?: AiConfig
   callAutoReject?: CallManagerOptions['autoReject']
   flags?: FeatureFlags | Record<string, boolean>
   keyPairProvider?: KeyPairProvider
@@ -121,6 +127,10 @@ export interface CorvusClientCore {
   readonly privacy: PrivacyManager
   readonly history: HistoryManager | undefined
   readonly flags: FeatureFlags
+  /** Pemetaan PN <-> LID (dipakai juga untuk mengenali pemilik bot di chat LID). */
+  readonly lidMapping: LidMappingStore
+  /** Sistem AI bawaan; terisi bila opsi `ai` diberikan atau `enableAi()` dipanggil. */
+  readonly ai: AiAgent | undefined
 
   /** Mulai koneksi (setup semua modul). Gunakan `waitForOpen()` untuk menunggu login selesai. */
   connect(): Promise<void>
@@ -140,7 +150,10 @@ export interface CorvusClientCore {
 }
 
 /** Klien lengkap: modul (`messages`, `groups`, ...) + alias bergaya Baileys (`sendMessage`, `groupMetadata`, ...). */
-export type CorvusClient = CorvusClientCore & SockApi
+export type CorvusClient = CorvusClientCore & SockApi & {
+  /** Aktifkan/ganti AI bawaan setelah `makeSocket`. */
+  enableAi(config: AiConfig): AiAgent
+}
 
 /**
  * Merakit seluruh library menjadi satu klien. Urutan modul: auth, pairing,
@@ -152,7 +165,7 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
     id, auth: authProvider, codec: codecOption, dictionary, clientPayload, verifyServerCertificate, handshake, transportFactory,
     keepAlive, reconnect: reconnectOptions, store: storeOption, storeOptions, historyDecoder, appStateSync,
     pairingBackend, onPairSuccess, encodeDeviceIdentity, channelQueryIds, mediaProcessor, fetch: fetchImpl,
-    saveCredsDebounceMs, callAutoReject, flags: flagsOption, keyPairProvider, postLogin, ...socketConfig
+    saveCredsDebounceMs, callAutoReject, flags: flagsOption, keyPairProvider, postLogin, ai: aiConfig, ...socketConfig
   } = options
   const codec: MessageCodec = codecOption ?? createProtoMessageCodec()
 
@@ -435,7 +448,7 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
     config: socket.config,
     state: socket.state,
     auth, store, engine, crypto, pairing, reconnect, messages, media, contacts, groups, communities, channels, chats, calls,
-    business, privacy, history, flags,
+    business, privacy, history, flags, lidMapping, ai: undefined,
 
     connect: () => socket.connect(),
     waitForOpen: (timeoutMs) => socket.waitForOpen(timeoutMs),
@@ -479,5 +492,20 @@ export function makeSocket(options: MakeSocketOptions): CorvusClient {
       offPostLogin?.()
     },
   }
-  return attachSockApi(core)
+  const client = attachSockApi(core) as CorvusClient
+  const mutable = client as { ai: AiAgent | undefined; enableAi: (config: AiConfig) => AiAgent }
+  mutable.enableAi = (config: AiConfig): AiAgent => {
+    mutable.ai?.dispose()
+    const agent = new AiAgent(client, config)
+    mutable.ai = agent
+    if (config.autoReply !== false) agent.attach()
+    return agent
+  }
+  if (aiConfig) mutable.enableAi(aiConfig)
+  const baseDispose = client.dispose
+  client.dispose = () => {
+    mutable.ai?.dispose()
+    baseDispose()
+  }
+  return client
 }
