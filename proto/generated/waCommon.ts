@@ -2,6 +2,7 @@
 // JANGAN DIEDIT — ubah file .proto lalu jalankan `npm run proto:generate`.
 /* eslint-disable */
 import type { FileDescriptor } from '../loader/proto-registry.js'
+import type { MessageAssociation } from './waMessage.js'
 
 export const HistorySyncNotification_HistorySyncType = {
   INITIAL_BOOTSTRAP: 0,
@@ -36,6 +37,7 @@ export interface MessageContextInfo {
   messageSecret?: Uint8Array | null
   paddingBytes?: Uint8Array | null
   messageAddOnDurationInSecs?: number | null
+  messageAssociation?: MessageAssociation | null
 }
 
 export interface HistorySyncNotification {
@@ -187,6 +189,14 @@ export const waCommonDescriptor: FileDescriptor = {
           "type": "uint32",
           "label": "optional",
           "packed": false
+        },
+        {
+          "name": "messageAssociation",
+          "number": 10,
+          "type": "message",
+          "label": "optional",
+          "packed": false,
+          "typeName": "corvus.MessageAssociation"
         }
       ],
       "oneofs": []
