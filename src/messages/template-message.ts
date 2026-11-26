@@ -32,7 +32,11 @@ export function buildTemplateMessage(input: TemplateInput): MessageContent {
       hydratedTemplate: {
         hydratedContentText: input.text,
         ...(input.footer !== undefined && { hydratedFooterText: input.footer }),
-        ...(input.title !== undefined && { hydratedTitleText: input.title }),
+        ...(input.media?.imageMessage ? { imageMessage: input.media.imageMessage }
+          : input.media?.videoMessage ? { videoMessage: input.media.videoMessage }
+          : input.media?.documentMessage ? { documentMessage: input.media.documentMessage }
+          : input.locationMessage ? { locationMessage: input.locationMessage }
+          : input.title !== undefined ? { hydratedTitleText: input.title } : {}),
         templateId: input.templateId ?? randomBytes(8).toString('hex'),
         hydratedButtons: input.buttons.map(hydrate),
       },
