@@ -35,6 +35,8 @@ export interface PrepareMediaOptions {
   /** Buat thumbnail bila memungkinkan (default true). */
   thumbnail?: boolean
   sticker?: StickerMeta
+  /** Media untuk saluran (newsletter): diunggah tanpa enkripsi, tanpa `mediaKey`. */
+  newsletter?: boolean
 }
 
 const DEFAULT_MAX_BUFFER = 64 * 1024 * 1024
@@ -98,6 +100,8 @@ export class MediaManager {
     const thumbnail = options.thumbnail ?? true
     let fields: object = {}
     let upload: UploadResult
+    const up = (stream: Readable, k: Parameters<MediaUploader['upload']>[1]): Promise<UploadResult> =>
+      options.newsletter ? this.uploader.uploadRaw(stream, k) : this.uploader.upload(stream, k)
 
     if (kind === 'video' || kind === 'gif') {
       upload = await withLocalFile(
@@ -105,14 +109,14 @@ export class MediaManager {
         async (path) => {
           const head = await readHead(path)
           fields = await prepareVideo(path, head, { ...(processor && { processor }), gif: kind === 'gif', thumbnail, ...(options.mimetype && { mimetype: options.mimetype }) })
-          return this.uploader.upload(createReadStream(path), kind)
+          return up(createReadStream(path), kind)
         },
         { ...(this.#opts.tmpDir && { tmpDir: this.#opts.tmpDir }), fetch: this.#fetch },
       )
     } else if (kind === 'document' && 'path' in source) {
       const head = await readHead(source.path)
       fields = { ...prepareDocument({ fileName: options.fileName ?? source.path.split(/[\\/]/).pop()!, head, ...(options.mimetype && { mimetype: options.mimetype }) }) }
-      upload = await this.uploader.upload(createReadStream(source.path), 'document')
+      upload = await up(createReadStream(source.path), 'document')
     } else {
       const data = await this.readSource(source)
       let payload = data
@@ -137,18 +141,20 @@ export class MediaManager {
           break
         }
       }
-      upload = await this.uploader.upload(Readable.from([payload]), kind)
+      upload = await up(Readable.from([payload]), kind)
     }
 
     const content: MessageContent = {
       [contentKeyForKind(kind)]: {
         url: upload.url,
         directPath: upload.directPath,
-        mediaKey: upload.mediaKey,
         fileSha256: upload.fileSha256,
-        fileEncSha256: upload.fileEncSha256,
         fileLength: upload.fileLength,
-        mediaKeyTimestamp: upload.mediaKeyTimestamp,
+        ...(!options.newsletter && {
+          mediaKey: upload.mediaKey,
+          fileEncSha256: upload.fileEncSha256,
+          mediaKeyTimestamp: upload.mediaKeyTimestamp,
+        }),
         ...fields,
         ...(options.caption !== undefined && kind !== 'audio' && kind !== 'ptt' && kind !== 'sticker' && { caption: options.caption }),
       },
