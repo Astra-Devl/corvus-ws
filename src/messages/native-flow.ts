@@ -16,7 +16,7 @@ export function buildNativeFlow(
   assertCount('buttons', buttons.length, options.maxButtons ?? BUTTON_LIMITS.nativeFlowButtons)
   return {
     buttons: buttons.map(toNativeFlowButton),
-    messageParamsJson: options.messageParamsJson ?? '',
+    ...(options.messageParamsJson && { messageParamsJson: options.messageParamsJson }),
     messageVersion: options.messageVersion ?? 1,
   }
 }
