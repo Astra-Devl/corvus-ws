@@ -1,4 +1,6 @@
 import { MessageError } from '../core/errors.js'
+import { contextInfoFromInput, type ContextInfoInput } from './context-input.js'
+import { buildRareMessage, isRareInput, type RareMessageInput } from './rare-messages.js'
 import { buildButtonsMessage } from './button-message.js'
 import type {
   ButtonsInput,
@@ -47,6 +49,7 @@ export type MessageInput =
   | { template: TemplateInput }
   | { interactive: InteractiveInput }
   | { carousel: CarouselInput }
+  | RareMessageInput
   /** Konten WAProto yang sudah jadi (mis. media yang sudah diunggah). */
   | { raw: MessageContent }
 
@@ -59,6 +62,8 @@ export interface GenerateOptions {
   userJid?: string
   /** Durasi pesan sementara (detik). */
   ephemeralExpiration?: number
+  /** `contextInfo` tambahan untuk SEMUA jenis pesan (external ad reply, diteruskan, mention semua, dll.). */
+  contextInfo?: ContextInfoInput
 }
 
 const has = <K extends string>(input: object, key: K): input is Record<K, never> => key in input
@@ -102,15 +107,19 @@ export function generateMessageContent(input: MessageInput, options: GenerateOpt
   else if (has(input, 'interactive')) content = buildInteractiveMessage(input.interactive as InteractiveInput)
   else if (has(input, 'carousel')) content = buildCarouselMessage(input.carousel as CarouselInput)
   else if (has(input, 'raw')) content = structuredClone(input.raw as MessageContent)
+  else if (isRareInput(input)) content = buildRareMessage(input as RareMessageInput)
   else throw new MessageError('Unsupported message input')
 
   const quote = options.quoted
     ? buildQuoteContext(options.quoted, options.userJid ? { ownJid: options.userJid } : {})
     : undefined
+  const custom = contextInfoFromInput(options.contextInfo)
+  const mergedMentions = [...(mentions ?? []), ...((custom.mentionedJid as string[] | undefined) ?? [])]
+  delete custom.mentionedJid
   const contextInfo = buildContextInfo({
-    ...(mentions && { mentions }),
+    ...(mergedMentions.length > 0 && { mentions: mergedMentions }),
     ...(options.ephemeralExpiration !== undefined && { expiration: options.ephemeralExpiration }),
-    ...(quote && { extra: quote }),
+    extra: { ...custom, ...quote },
   })
 
   const isControl = 'protocolMessage' in content || 'reactionMessage' in content
