@@ -1,4 +1,4 @@
-<h1 align="center">🐦‍⬛ corvus-ws</h1>
+<h1 align="center">corvus-ws</h1>
 
 <p align="center">Library WhatsApp Web (multi-device) berbasis TypeScript & WebSocket, dibuat secara independen tanpa browser.</p>
 
