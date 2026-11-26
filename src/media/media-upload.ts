@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
 import { rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -66,6 +66,60 @@ export class MediaUploader {
     })
     this.#conn = parseMediaConn(result, this.#now())
     return this.#conn
+  }
+
+  /**
+   * Unggah media TANPA enkripsi (khusus saluran/newsletter: pesannya tidak dienkripsi E2E).
+   * Token = SHA-256 berkas; hasilnya tidak punya `mediaKey` / `fileEncSha256`.
+   */
+  async uploadRaw(source: Readable, type: MediaType): Promise<UploadResult> {
+    const tmp = join(this.#opts.tmpDir ?? tmpdir(), `corvus-${randomUUID()}.raw`)
+    const hash = createHash('sha256')
+    try {
+      let fileLength = 0
+      const { Transform } = await import('node:stream')
+      const tap = new Transform({
+        transform(chunk: Buffer, _enc, cb) {
+          hash.update(chunk)
+          fileLength += chunk.length
+          cb(null, chunk)
+        },
+      })
+      await pipeline(source, tap, createWriteStream(tmp, { mode: 0o600 }))
+      const fileSha256 = hash.digest()
+      const token = fileSha256.toString('base64url')
+
+      let lastError: unknown
+      for (const refresh of [false, true]) {
+        const conn = await this.getMediaConn(refresh)
+        const hosts = conn.hosts.filter((h) => fileLength <= h.maxContentLengthBytes)
+        if (hosts.length === 0) throw new MediaError(`File too large to upload (${fileLength} bytes)`, { code: 'ERR_MEDIA_TOO_LARGE' })
+        for (const host of hosts) {
+          try {
+            const url = `https://${host.hostname}${MEDIA_PATHS[type]}/${token}?auth=${encodeURIComponent(conn.auth)}&token=${token}`
+            const res = await this.#fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/octet-stream', Origin: 'https://web.whatsapp.com', 'Content-Length': String(fileLength) },
+              body: Readable.toWeb(createReadStream(tmp)) as never,
+              duplex: 'half',
+              signal: AbortSignal.timeout(this.#opts.timeoutMs ?? 120_000),
+            } as RequestInit)
+            if (!res.ok) throw new MediaError(`Upload failed (${res.status})`, { statusCode: res.status, code: 'ERR_MEDIA_HTTP' })
+            const json = (await res.json()) as { url?: string; direct_path?: string }
+            if (!json.url || !json.direct_path) throw new MediaError('Upload response is missing url/direct_path')
+            return { fileSha256, fileLength, url: json.url, directPath: json.direct_path } as UploadResult
+          } catch (error) {
+            lastError = error
+            this.#logger.warn({ err: error, host: host.hostname }, 'raw media upload failed, trying next host')
+          }
+        }
+        const status = (lastError as { statusCode?: number } | undefined)?.statusCode
+        if (status !== 401 && status !== 403) break
+      }
+      throw lastError instanceof MediaError ? lastError : new MediaError('Media upload failed', { cause: lastError })
+    } finally {
+      await rm(tmp, { force: true })
+    }
   }
 
   async upload(source: Readable, type: MediaType, options: { mediaKey?: Buffer } = {}): Promise<UploadResult> {
