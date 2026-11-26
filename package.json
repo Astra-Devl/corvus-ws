@@ -1,6 +1,6 @@
 {
   "name": "corvus-ws",
-  "version": "1.0.8",
+  "version": "0.1.1",
   "description": "An independently built WhatsApp bot library",
   "keywords": [
     "whatsapp",
@@ -62,7 +62,7 @@
     "format:check": "prettier --check src proto tests",
     "proto:generate": "tsx scripts/generate-proto.cjs",
     "proto:validate": "tsx scripts/validate-proto.cjs",
-    "test": "npm run test:unit && npm run test:proto && npm run test:version && npm run test:integration && npm run test:pairing && npm run test:lid && npm run test:buttons",
+    "test": "npm run test:unit && npm run test:proto && npm run test:version && npm run test:integration && npm run test:pairing && npm run test:lid && npm run test:buttons && npm run test:features && npm run test:ai",
     "test:unit": "tsx tests/utils/utils-and-internal.smoke.mts",
     "test:proto": "tsx tests/proto/proto.smoke.mts",
     "test:version": "tsx tests/version/version.smoke.mts",
@@ -71,14 +71,20 @@
     "prepublishOnly": "npm run check && npm run build",
     "test:pairing": "tsx tests/integration/pairing-handshake.smoke.mts",
     "test:lid": "tsx tests/integration/lid-support.smoke.mts",
-    "test:buttons": "tsx tests/integration/buttons.smoke.mts"
+    "test:buttons": "tsx tests/integration/buttons.smoke.mts",
+    "test:features": "tsx tests/integration/features.smoke.mts",
+    "test:ai": "tsx tests/integration/ai.smoke.mts"
   },
   "peerDependencies": {
     "sharp": ">=0.33.0",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "qrcode": "^1.5.0"
   },
   "peerDependenciesMeta": {
     "sharp": {
+      "optional": true
+    },
+    "qrcode": {
       "optional": true
     }
   },
